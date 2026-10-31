@@ -12,9 +12,9 @@ export default function StatisticsDashboardPage() {
       title="Estadísticas del laboratorio"
       subtitle="Producción, cuellos de botella y cumplimiento de plazos · C.S. El Paraíso"
     >
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <MetricsBentoGrid />
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[1.4fr_1fr]">
           <CollectionCharts />
           <TatAlertsPanel />
         </div>
