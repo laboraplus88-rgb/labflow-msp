@@ -1,53 +1,45 @@
-# LabFlow — Laboratorio Clínico MSP
+# LabFlow MSP Ecuador
 
-**LabFlow** digitaliza el formulario **SNS-MSP / HCU-form.010A / 2008** del Ministerio de Salud Pública del Ecuador.
+Sistema de gestión de laboratorio clínico (C.S. El Paraíso / MSP Ecuador).
 
-Plataforma de vanguardia para centros de salud y subcentros (demo: **C.S. El Paraíso · UO 493**).
+**URL del repo:** https://github.com/laboraplus88-rgb/labflow-msp
 
-## Módulos
+> Si ves este README, el repositorio **no está vacío**. Hay ~80 archivos de código fuente.
 
-| Módulo | Ruta | Descripción |
-|--------|------|-------------|
-| **Estadísticas** | `/` | Dashboard principal: KPIs, recolección, alertas TAT, cuellos de botella, mix y médicos |
-| **Solicitud y toma** | `/exam-request-sample-collection` | Formulario 010A + catálogo + etiquetas de muestra profesionales |
-| **Procesamiento** | `/test-processing-workflow` | Pipeline por etapas, ingreso de resultados, validación y rechazo |
-| **Historial paciente** | `/patient-history` | Búsqueda por nombre/cédula, historial por fecha, resultados de laboratorio |
-| **Login** | `/sign-up-login-screen` | Autenticación con cuentas demo por rol |
+## Estructura del código
 
-## Características clave
+```
+src/app/page.tsx                          → Dashboard estadísticas
+src/app/exam-request-sample-collection/   → Solicitud 010A + etiquetas
+src/app/test-processing-workflow/         → Workflow de exámenes
+src/app/patient-history/                  → Historial por paciente
+src/app/sign-up-login-screen/             → Login / registro
+src/components/                           → Sidebar, Topbar, UI
+src/lib/labData.ts                        → Datos auxiliares
+src/lib/supabase/                         → Integración Supabase real
+  client.ts | server.ts | middleware.ts | api.ts | database.types.ts
+supabase/schema.sql                       → SQL completo (tablas + RLS + seed)
+supabase/seed_roles.sql
+supabase/SETUP.md
+```
 
-- **Etiquetas de muestra profesionales** con código de barras visual, CI, tipo de tubo y color por tubo
-- **Historial del paciente** por fecha con flags (normal / alto / bajo / crítico)
-- **Búsqueda** por nombre o número de cédula
-- **Origen**: Centro de Salud o Subcentro (seleccionable en la solicitud)
-- **Flujo del médico**: buscar/crear paciente → seleccionar exámenes → ver resultados en consulta
-- Control de plazos de entrega (TAT) con alertas
-- Catálogo de 7 secciones
+## Setup
+
+1. Ejecutar `supabase/schema.sql` en SQL Editor de Supabase
+2. Crear usuarios en Auth (ver SETUP.md)
+3. Ejecutar `supabase/seed_roles.sql`
+4. `.env.local` desde `.env.example`
+5. `npm install && npm run dev` → http://localhost:4028
 
 ## Stack
 
-- Next.js 15 (App Router) · React 19 · TypeScript
-- Tailwind CSS 3.4 · Recharts · react-hook-form · Lucide
-- Fuente: Plus Jakarta Sans
+Next.js 15 · React 19 · TypeScript · Tailwind · Supabase · Recharts
 
-## Cuentas de demostración
+## Cuentas
 
-| Rol | Correo | Contraseña |
-|-----|--------|------------|
-| Jefa de laboratorio | jefatura@labflow.msp.gob.ec | Lab2026!Jefa |
-| Bioquímico / Tecnólogo | tecnologo@labflow.msp.gob.ec | Lab2026!Tecn |
-| Toma de muestras | muestras@labflow.msp.gob.ec | Lab2026!Toma |
-| Médico solicitante | medico@labflow.msp.gob.ec | Lab2026!Medi |
-
-## Scripts
-
-```bash
-npm install
-npm run dev          # http://localhost:4028
-npm run build
-```
-
----
-
-**C.S. El Paraíso · UO 493 · MSP Ecuador**  
-Ambiente profesional y de vanguardia
+| Rol | Correo | Password |
+|-----|--------|----------|
+| Jefa | jefatura@labflow.msp.gob.ec | Lab2026!Jefa |
+| Tecnólogo | tecnologo@labflow.msp.gob.ec | Lab2026!Tecn |
+| Toma | muestras@labflow.msp.gob.ec | Lab2026!Toma |
+| Médico | medico@labflow.msp.gob.ec | Lab2026!Medi |
