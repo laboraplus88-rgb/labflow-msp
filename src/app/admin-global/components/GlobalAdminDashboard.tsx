@@ -65,7 +65,7 @@ export default function GlobalAdminDashboard() {
             <Wifi className="h-5 w-5 opacity-80" />
           </div>
           <p className="mt-2 text-3xl font-bold tabular">{data?.onlineUsers ?? 0}</p>
-          <p className="mt-1 text-xs opacity-80">Heartbeat < 2 min · cada 15s</p>
+          <p className="mt-1 text-xs opacity-80">Heartbeat menos de 2 min · cada 15s</p>
         </article>
         <article className="rounded-xl border border-border bg-card p-4 sm:p-5">
           <div className="flex items-center justify-between">
