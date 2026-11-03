@@ -1,4 +1,5 @@
--- Ejecutar DESPUES de crear los 4 usuarios en Authentication -> Users
+-- LabFlow: asignar roles DESPUES de crear usuarios en Auth
+-- Roles: jefa | tecnologo | toma | medico
 
 update public.profiles
 set role = 'jefa', full_name = 'Dra. Tatiana Mejia', active = true
@@ -27,4 +28,5 @@ where f.code = '493'
     'medico@labflow.msp.gob.ec'
   );
 
-select email, full_name, role, active from public.profiles order by role;
+-- Verificar
+select email, full_name, role, active, facility_id from public.profiles order by role;

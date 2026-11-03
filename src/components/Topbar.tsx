@@ -1,6 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Menu, Search, Bell, Clock3 } from 'lucide-react';
+import { Menu, Search, Bell, Clock3, LogOut, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { getProfile, getMyRole, signOut } from '@/lib/supabase/api';
 
 interface TopbarProps {
   title: string;
@@ -8,21 +10,47 @@ interface TopbarProps {
   onMenu: () => void;
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  jefa: 'Jefa de laboratorio',
+  tecnologo: 'Bioquimico / Tecnologo',
+  toma: 'Toma de muestras',
+  medico: 'Medico solicitante',
+};
+
 export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
+  const router = useRouter();
   const [now, setNow] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const fmt = () => {
       const d = new Date();
-      const hh = d.getHours().toString().padStart(2, '0');
-      const mm = d.getMinutes().toString().padStart(2, '0');
-      setNow(`${hh}:${mm}`);
+      setNow(
+        `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+      );
     };
     fmt();
     const t = setInterval(fmt, 30000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      const [profile, r] = await Promise.all([getProfile(), getMyRole()]);
+      if (profile?.full_name) setFullName(profile.full_name);
+      setRole(r ?? profile?.role ?? null);
+    })();
+  }, []);
+
+  const handleSignOut = async () => {
+    setBusy(true);
+    await signOut();
+    router.push('/sign-up-login-screen');
+    router.refresh();
+  };
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
@@ -30,7 +58,7 @@ export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
         <button
           type="button"
           onClick={onMenu}
-          aria-label="Abrir menú"
+          aria-label="Abrir menu"
           className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted md:hidden"
         >
           <Menu className="h-5 w-5" />
@@ -52,23 +80,31 @@ export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
           </button>
 
           <label className="relative hidden lg:block">
-            <span className="sr-only">Buscar paciente, cédula o muestra</span>
+            <span className="sr-only">Buscar paciente, cedula o muestra</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
-              placeholder="Paciente, cédula o N.º de muestra…"
-              className="w-56 rounded-lg border border-input bg-background py-2 pl-9 pr-12 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 xl:w-72"
+              placeholder="Paciente, cedula o N. de muestra..."
+              className="w-56 rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 xl:w-72"
             />
-            <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-              ⌘K
-            </kbd>
           </label>
 
-          <div className="hidden items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-semibold text-foreground sm:flex">
-            <Clock3 className="h-3.5 w-3.5 text-primary" />
-            <span className="tabular">{now || '--:--'}</span>
-            <span className="hidden text-muted-foreground md:inline">· Turno matutino</span>
+          <div className="hidden items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground sm:flex">
+            <Clock3 className="h-3.5 w-3.5" />
+            <span className="tabular">{now}</span>
           </div>
+
+          {(fullName || role) && (
+            <div className="hidden max-w-[180px] items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 md:flex">
+              <User className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-foreground">{fullName || 'Usuario'}</p>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {role ? ROLE_LABEL[role] ?? role : '\u2014'}
+                </p>
+              </div>
+            </div>
+          )}
 
           <button
             type="button"
@@ -76,9 +112,16 @@ export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
             className="relative rounded-lg p-2 text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-95"
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground tabular">
-              5
-            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={busy}
+            aria-label="Cerrar sesion"
+            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive disabled:opacity-50"
+          >
+            <LogOut className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -90,7 +133,7 @@ export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
             <input
               type="search"
               autoFocus
-              placeholder="Paciente, cédula o N.º de muestra…"
+              placeholder="Paciente, cedula o N. de muestra..."
               className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
             />
           </label>
