@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, LogIn, UserPlus, Stethoscope, FlaskConical, Crown } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
+import { signIn, signUp } from '@/lib/supabase/api';
 
-const DEMO_ACCOUNTS = [
+const ACCOUNTS = [
   { role: 'Jefa de laboratorio', email: 'jefatura@labflow.msp.gob.ec', password: 'Lab2026!Jefa', icon: Crown },
   { role: 'Bioquimico / Tecnologo', email: 'tecnologo@labflow.msp.gob.ec', password: 'Lab2026!Tecn', icon: FlaskConical },
   { role: 'Medico solicitante', email: 'medico@labflow.msp.gob.ec', password: 'Lab2026!Medi', icon: Stethoscope },
@@ -15,28 +16,54 @@ export default function AuthCard() {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [role, setRole] = useState('Medico / Tecnologo / Jefa de laboratorio');
+  const [role, setRole] = useState('medico');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fillDemo = (e: string, p: string) => {
+  const fillAccount = (e: string, p: string) => {
     setEmail(e);
     setPassword(p);
     setError('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
     setError('');
     if (!email || !password) {
       setError('Ingrese correo y contrasena.');
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setLoading(false);
-    router.push('/');
+    try {
+      if (tab === 'login') {
+        const { error: err } = await signIn(email, password);
+        if (err) {
+          setError(err.message || 'No se pudo iniciar sesion.');
+          setLoading(false);
+          return;
+        }
+      } else {
+        const { error: err } = await signUp(
+          email,
+          password,
+          fullName || email.split('@')[0],
+          role
+        );
+        if (err) {
+          setError(err.message || 'No se pudo crear la cuenta.');
+          setLoading(false);
+          return;
+        }
+      }
+      router.push('/');
+      router.refresh();
+    } catch {
+      setError('Error de conexion con Supabase. Revisa .env.local');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,15 +98,15 @@ export default function AuthCard() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {tab === 'signup' && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">Nombre</label>
-                  <input type="text" className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30" placeholder="Nombre" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">Apellido</label>
-                  <input type="text" className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30" placeholder="Apellido" />
-                </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground">Nombre completo</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+                  placeholder="Dra. Tatiana Mejia"
+                />
               </div>
             )}
 
@@ -117,20 +144,21 @@ export default function AuthCard() {
               </div>
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">Rol en el laboratorio</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
-              >
-                <option>Medico / Tecnologo / Jefa de laboratorio</option>
-                <option>Jefa de laboratorio</option>
-                <option>Bioquimico / Tecnologo</option>
-                <option>Toma de muestras</option>
-                <option>Medico solicitante</option>
-              </select>
-            </div>
+            {tab === 'signup' && (
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground">Rol en el laboratorio</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+                >
+                  <option value="medico">Medico solicitante</option>
+                  <option value="tecnologo">Bioquimico / Tecnologo</option>
+                  <option value="toma">Toma de muestras</option>
+                  <option value="jefa">Jefa de laboratorio</option>
+                </select>
+              </div>
+            )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -140,37 +168,34 @@ export default function AuthCard() {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
             >
               {tab === 'login' ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-              {loading ? 'Ingresando...' : tab === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}
+              {loading ? 'Procesando...' : tab === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}
             </button>
           </form>
 
           {tab === 'login' && (
             <div className="mt-6">
-              <p className="mb-2 text-xs font-semibold text-muted-foreground">Cuenta de demostracion</p>
+              <p className="mb-2 text-xs font-semibold text-muted-foreground">Cuentas (tras seed en Supabase)</p>
               <div className="flex flex-wrap gap-2">
-                {DEMO_ACCOUNTS.map((a) => {
+                {ACCOUNTS.map((a) => {
                   const Icon = a.icon;
                   return (
                     <button
                       key={a.email}
                       type="button"
-                      onClick={() => fillDemo(a.email, a.password)}
+                      onClick={() => fillAccount(a.email, a.password)}
                       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
                     >
                       <Icon className="h-3 w-3 text-primary" />
-                      <span className="max-w-[130px] truncate">{a.email}</span>
+                      <span className="max-w-[140px] truncate">{a.email}</span>
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">Usa estas cuentas para explorar LabFlow sin riesgos.</p>
             </div>
           )}
         </div>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          C.S. El Paraiso · UO 493 · MSP Ecuador
-        </p>
+        <p className="mt-4 text-center text-xs text-muted-foreground">LabFlow · C.S. El Paraiso · UO 493 · MSP Ecuador</p>
       </div>
     </section>
   );
