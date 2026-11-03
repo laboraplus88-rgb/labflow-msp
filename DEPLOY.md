@@ -1,52 +1,29 @@
-# LabFlow — Deploy (GitHub + Supabase + Vercel)
+# LabFlow — Deploy (Vercel + Supabase)
 
-## 1. GitHub
+## Vercel
 
-Repo oficial: https://github.com/laboraplus88-rgb/labflow-msp
+1. Import repo: `laboraplus88-rgb/labflow-msp`
+2. Framework: Next.js
+3. Env vars (Production + Preview):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Deploy from branch `main`
 
-## 2. Supabase
+**Build note:** `tailwind.config.ts` uses `plugins: []` (no optional plugins).
+Latest fix commits must be on Production, not old `f2e412d`.
 
-1. Crear proyecto en https://supabase.com
-2. SQL Editor → pegar y ejecutar **`supabase/schema.sql`**
-3. Authentication → Users → Add user:
+## Supabase SQL order
 
-| Email | Password |
-|-------|----------|
-| jefatura@labflow.msp.gob.ec | Lab2026!Jefa |
-| tecnologo@labflow.msp.gob.ec | Lab2026!Tecn |
-| muestras@labflow.msp.gob.ec | Lab2026!Toma |
-| medico@labflow.msp.gob.ec | Lab2026!Medi |
+1. `supabase/schema.sql`
+2. Create Auth users
+3. `supabase/seed_roles.sql`
+4. `supabase/03_rpc_roles_rls.sql`
+5. `supabase/04_multitenant.sql`
 
-4. SQL Editor → ejecutar **`supabase/seed_roles.sql`**
-5. Project Settings → API → copiar:
-   - Project URL
-   - anon public key
+## Auth URLs
 
-## 3. Variables de entorno
+Site URL + Redirect: your `*.vercel.app` URL
 
-Local (`.env.local`):
+## Verify
 
-```
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-```
-
-Vercel → Project → Settings → Environment Variables: las mismas dos.
-
-## 4. Vercel
-
-1. New Project → import `laboraplus88-rgb/labflow-msp`
-2. Framework: Next.js (auto)
-3. Añadir env vars del paso 3
-4. Deploy
-
-## 5. Verificación
-
-- Abrir URL de Vercel
-- Login con una cuenta del paso 2
-- Middleware redirige a login si no hay sesión
-
-## Notas
-
-- UI aún puede usar `labData.ts` en algunas pantallas; la API real está en `src/lib/supabase/api.ts`
-- Auth ya usa Supabase (`AuthCard` + middleware)
+Login with seed users (see `supabase/ROLES.md`).
