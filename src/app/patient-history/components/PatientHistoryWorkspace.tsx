@@ -1,40 +1,138 @@
 'use client';
-import React, { useMemo, useState } from 'react';
-import { Search, UserRound, CalendarDays, FlaskConical, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Stethoscope, Plus } from 'lucide-react';
-import { PATIENTS, searchPatients, fullPatientName, PatientRecord } from '@/lib/labData';
-import Badge, { priorityTone, orderTone } from '@/components/ui/Badge';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Search, UserRound, CalendarDays, FlaskConical, AlertTriangle,
+  CheckCircle2, ChevronDown, ChevronUp, Stethoscope, Plus, Loader2,
+} from 'lucide-react';
+import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import Link from 'next/link';
+import { searchPatients, getPatientOrders } from '@/lib/supabase/api';
 
-const FLAG_STYLE = {
+type PatientRow = {
+  id: string;
+  historia: string | null;
+  cedula: string;
+  apellido_paterno: string;
+  apellido_materno: string | null;
+  primer_nombre: string;
+  segundo_nombre: string | null;
+  edad: number | null;
+  sexo: string | null;
+  provincia: string | null;
+  canton: string | null;
+  parroquia: string | null;
+};
+
+type TestRow = {
+  id: string;
+  exam_name: string;
+  category: string;
+  result: string | null;
+  result_unit: string | null;
+  result_range: string | null;
+  result_flag: string | null;
+  stage: string;
+  validated_at: string | null;
+};
+
+type OrderRow = {
+  id: string;
+  code: string;
+  order_type: string;
+  priority: string;
+  status: string;
+  diagnosis: string | null;
+  created_at: string;
+  tests: TestRow[] | null;
+  facilities: { name: string } | null;
+};
+
+const FLAG_STYLE: Record<string, string> = {
   normal: 'bg-success/15 text-success',
   alto: 'bg-destructive/15 text-destructive',
   bajo: 'bg-warning/20 text-warning-foreground',
   critico: 'bg-destructive text-destructive-foreground font-bold',
-} as const;
+};
+
+function fullName(p: PatientRow) {
+  return [p.apellido_paterno, p.apellido_materno, p.primer_nombre, p.segundo_nombre]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function priorityTone(p: string): 'danger' | 'warning' | 'info' | 'neutral' {
+  if (p === 'Urgente') return 'danger';
+  if (p === 'Control') return 'warning';
+  return 'info';
+}
+
+function orderTone(o: string): 'danger' | 'info' | 'neutral' {
+  if (o === 'Emergencia') return 'danger';
+  return 'info';
+}
 
 export default function PatientHistoryWorkspace() {
   const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [results, setResults] = useState<PatientRow[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [selected, setSelected] = useState<PatientRow | null>(null);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
-  const [facilityFilter, setFacilityFilter] = useState('Todas');
+  const [error, setError] = useState('');
 
-  const results = useMemo(() => searchPatients(query), [query]);
-  const patient = PATIENTS.find((p) => p.id === selectedId) ?? null;
+  const runSearch = useCallback(async (q: string) => {
+    setLoadingSearch(true);
+    setError('');
+    try {
+      const { data, error: err } = await searchPatients(q);
+      if (err) {
+        setError(err.message);
+        setResults([]);
+      } else {
+        setResults((data as PatientRow[]) ?? []);
+      }
+    } catch {
+      setError('No se pudo conectar con Supabase. Revisa .env.local');
+      setResults([]);
+    } finally {
+      setLoadingSearch(false);
+    }
+  }, []);
 
-  const filteredOrders = useMemo(() => {
-    if (!patient) return [];
-    if (facilityFilter === 'Todas') return patient.orders;
-    return patient.orders.filter((o) => o.facility === facilityFilter || o.origin === facilityFilter);
-  }, [patient, facilityFilter]);
+  useEffect(() => {
+    const t = setTimeout(() => runSearch(query), 300);
+    return () => clearTimeout(t);
+  }, [query, runSearch]);
+
+  const selectPatient = async (p: PatientRow) => {
+    setSelected(p);
+    setExpandedOrder(null);
+    setLoadingOrders(true);
+    setError('');
+    try {
+      const { data, error: err } = await getPatientOrders(p.id);
+      if (err) {
+        setError(err.message);
+        setOrders([]);
+      } else {
+        setOrders((data as OrderRow[]) ?? []);
+      }
+    } catch {
+      setError('Error al cargar ordenes');
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
-      {/* Search panel */}
       <section className="rounded-xl border border-border bg-card">
         <header className="border-b border-border px-4 py-3">
           <h2 className="text-sm font-bold text-foreground">Buscar paciente</h2>
-          <p className="text-xs text-muted-foreground">Nombre, cedula o N. de historia clinica</p>
+          <p className="text-xs text-muted-foreground">Nombre, cedula o historia clinica</p>
         </header>
         <div className="p-4">
           <label className="relative block">
@@ -49,31 +147,38 @@ export default function PatientHistoryWorkspace() {
             />
           </label>
 
-          <ul className="mt-3 max-h-[520px] space-y-1 overflow-y-auto scrollbar-thin">
-            {results.length === 0 ? (
-              <li className="px-2 py-6 text-center text-sm text-muted-foreground">Ningun paciente coincide</li>
+          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+
+          <ul className="mt-3 max-h-[520px] space-y-1 overflow-y-auto">
+            {loadingSearch ? (
+              <li className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Buscando...
+              </li>
+            ) : results.length === 0 ? (
+              <li className="px-2 py-6 text-center text-sm text-muted-foreground">
+                {query ? 'Ningun paciente coincide' : 'Escriba para buscar o deje vacio para ver recientes'}
+              </li>
             ) : (
               results.map((p) => {
-                const active = selectedId === p.id;
+                const active = selected?.id === p.id;
                 return (
                   <li key={p.id}>
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedId(p.id);
-                        setExpandedOrder(null);
-                      }}
+                      onClick={() => selectPatient(p)}
                       className={`flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-all ${
                         active ? 'bg-primary/10 border border-primary' : 'hover:bg-muted border border-transparent'
                       }`}
                     >
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lilac text-xs font-bold text-lilac-foreground">
-                        {p.primerNombre[0]}{p.apellidoPaterno[0]}
+                        {(p.primer_nombre?.[0] || '?')}{(p.apellido_paterno?.[0] || '')}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{fullPatientName(p)}</p>
-                        <p className="font-mono text-[11px] text-muted-foreground tabular">CI {p.cedula}</p>
-                        <p className="text-[11px] text-muted-foreground">{p.edad} anos · {p.sexo === 'F' ? 'Mujer' : 'Hombre'} · {p.orders.length} orden(es)</p>
+                        <p className="truncate text-sm font-semibold text-foreground">{fullName(p)}</p>
+                        <p className="font-mono text-[11px] text-muted-foreground">CI {p.cedula}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {p.edad != null ? `${p.edad} anos` : '\u2014'} \u00b7 {p.sexo === 'F' ? 'Mujer' : p.sexo === 'M' ? 'Hombre' : '\u2014'}
+                        </p>
                       </div>
                     </button>
                   </li>
@@ -84,13 +189,12 @@ export default function PatientHistoryWorkspace() {
         </div>
       </section>
 
-      {/* Detail */}
       <div className="min-w-0 space-y-5">
-        {!patient ? (
+        {!selected ? (
           <EmptyState
             icon={<UserRound className="h-6 w-6" />}
             title="Seleccione un paciente"
-            description="Busque por nombre o cedula en el panel izquierdo para ver el historial de examenes y resultados de laboratorio."
+            description="Busque por nombre o cedula para ver el historial de examenes y resultados de laboratorio."
           />
         ) : (
           <>
@@ -98,15 +202,19 @@ export default function PatientHistoryWorkspace() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">
-                    {patient.primerNombre[0]}{patient.apellidoPaterno[0]}
+                    {(selected.primer_nombre?.[0] || '?')}{(selected.apellido_paterno?.[0] || '')}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-foreground">{fullPatientName(patient)}</h2>
-                    <p className="mt-0.5 font-mono text-sm text-muted-foreground tabular">
-                      CI {patient.cedula} · HC {patient.historia}
+                    <h2 className="text-xl font-bold text-foreground">{fullName(selected)}</h2>
+                    <p className="mt-0.5 font-mono text-sm text-muted-foreground">
+                      CI {selected.cedula}
+                      {selected.historia ? ` \u00b7 HC ${selected.historia}` : ''}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {patient.edad} anos · {patient.sexo === 'F' ? 'Mujer' : 'Hombre'} · {patient.parroquia}, {patient.canton}
+                      {selected.edad != null ? `${selected.edad} anos` : '\u2014'}{' '}\u00b7{' '}
+                      {selected.sexo === 'F' ? 'Mujer' : selected.sexo === 'M' ? 'Hombre' : '\u2014'}
+                      {selected.parroquia ? ` \u00b7 ${selected.parroquia}` : ''}
+                      {selected.canton ? `, ${selected.canton}` : ''}
                     </p>
                   </div>
                 </div>
@@ -119,75 +227,63 @@ export default function PatientHistoryWorkspace() {
               </div>
             </article>
 
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span className="text-xs font-semibold text-muted-foreground">Origen / establecimiento:</span>
-              {['Todas', 'C.S. El Paraiso', 'Consulta externa', 'Emergencia', 'Subcentro'].map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setFacilityFilter(f)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                    facilityFilter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-
             <section className="space-y-3">
               <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 <CalendarDays className="h-4 w-4" /> Historial de ordenes y resultados
               </h3>
 
-              {filteredOrders.length === 0 ? (
+              {loadingOrders ? (
+                <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" /> Cargando ordenes...
+                </div>
+              ) : orders.length === 0 ? (
                 <EmptyState
                   icon={<FlaskConical className="h-6 w-6" />}
-                  title="Sin ordenes en este filtro"
-                  description="No hay solicitudes de laboratorio para este paciente con el filtro actual."
+                  title="Sin ordenes"
+                  description="Este paciente aun no tiene solicitudes de laboratorio registradas."
                 />
               ) : (
-                filteredOrders.map((order) => {
-                  const open = expandedOrder === order.requestId;
+                orders.map((order) => {
+                  const open = expandedOrder === order.id;
+                  const tests = order.tests ?? [];
+                  const date = new Date(order.created_at);
+                  const dd = String(date.getDate()).padStart(2, '0');
+                  const mm = String(date.getMonth() + 1).padStart(2, '0');
                   return (
-                    <article key={order.requestId} className="overflow-hidden rounded-xl border border-border bg-card">
+                    <article key={order.id} className="overflow-hidden rounded-xl border border-border bg-card">
                       <button
                         type="button"
-                        onClick={() => setExpandedOrder(open ? null : order.requestId)}
+                        onClick={() => setExpandedOrder(open ? null : order.id)}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
                       >
                         <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-muted text-center">
-                          <span className="text-[10px] font-bold uppercase text-muted-foreground">{order.date.slice(5, 7)}/{order.date.slice(2, 4)}</span>
-                          <span className="text-sm font-bold tabular text-foreground">{order.date.slice(8)}</span>
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground">{mm}</span>
+                          <span className="text-sm font-bold text-foreground">{dd}</span>
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-mono text-xs font-semibold text-primary">{order.requestId}</span>
-                            <Badge tone={orderTone(order.orderType)}>{order.orderType}</Badge>
+                            <span className="font-mono text-xs font-semibold text-primary">{order.code}</span>
+                            <Badge tone={orderTone(order.order_type)}>{order.order_type}</Badge>
                             <Badge tone={priorityTone(order.priority)} dot>{order.priority}</Badge>
-                            <Badge tone={order.status === 'Entregado' ? 'success' : order.status === 'Parcial' ? 'warning' : 'info'}>
-                              {order.status}
-                            </Badge>
+                            <Badge tone={order.status === 'entregada' ? 'success' : 'info'}>{order.status}</Badge>
                           </div>
                           <p className="mt-0.5 text-sm text-muted-foreground">
                             <Stethoscope className="mr-1 inline h-3.5 w-3.5" />
-                            {order.doctor} · {order.facility} · {order.time}
+                            {order.facilities?.name ?? '\u2014'} \u00b7 {date.toLocaleString('es-EC')}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="tabular font-semibold text-foreground">{order.results.length}</span> resultados
+                          <span className="font-semibold text-foreground">{tests.length}</span> resultados
                           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>
                       </button>
 
                       {open && (
                         <div className="border-t border-border bg-muted/20 px-4 py-3">
-                          {order.results.length === 0 ? (
-                            <p className="py-4 text-center text-sm text-muted-foreground">
-                              Resultados aun no disponibles — el examen esta en proceso o pendiente de validacion.
-                            </p>
+                          {tests.length === 0 ? (
+                            <p className="py-4 text-center text-sm text-muted-foreground">Sin resultados registrados aun.</p>
                           ) : (
-                            <div className="overflow-x-auto scrollbar-thin">
+                            <div className="overflow-x-auto">
                               <table className="w-full min-w-[640px] text-sm">
                                 <thead>
                                   <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -199,31 +295,32 @@ export default function PatientHistoryWorkspace() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {order.results.map((r) => (
-                                    <tr key={`${order.requestId}-${r.examId}`} className="border-t border-border/60">
+                                  {tests.map((r) => (
+                                    <tr key={r.id} className="border-t border-border/60">
                                       <td className="py-2.5 pr-3">
-                                        <p className="font-medium text-foreground">{r.examName}</p>
+                                        <p className="font-medium text-foreground">{r.exam_name}</p>
                                         <p className="text-[11px] text-muted-foreground">{r.category}</p>
                                       </td>
                                       <td className="py-2.5 pr-3">
-                                        <span className="text-base font-bold tabular text-foreground">{r.result}</span>
-                                        {r.unit !== '-' && <span className="ml-1 text-xs text-muted-foreground">{r.unit}</span>}
+                                        <span className="text-base font-bold text-foreground">{r.result ?? '\u2014'}</span>
+                                        {r.result_unit && (
+                                          <span className="ml-1 text-xs text-muted-foreground">{r.result_unit}</span>
+                                        )}
                                       </td>
-                                      <td className="py-2.5 pr-3 tabular text-muted-foreground">{r.range}</td>
+                                      <td className="py-2.5 pr-3 text-muted-foreground">{r.result_range ?? '\u2014'}</td>
                                       <td className="py-2.5 pr-3">
-                                        {r.flag ? (
-                                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${FLAG_STYLE[r.flag]}`}>
-                                            {r.flag === 'critico' && <AlertTriangle className="h-3 w-3" />}
-                                            {r.flag === 'normal' && <CheckCircle2 className="h-3 w-3" />}
-                                            {r.flag === 'normal' ? 'Normal' : r.flag === 'alto' ? 'Alto' : r.flag === 'bajo' ? 'Bajo' : 'Critico'}
+                                        {r.result_flag ? (
+                                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${FLAG_STYLE[r.result_flag] ?? ''}`}>
+                                            {r.result_flag === 'critico' && <AlertTriangle className="h-3 w-3" />}
+                                            {r.result_flag === 'normal' && <CheckCircle2 className="h-3 w-3" />}
+                                            {r.result_flag}
                                           </span>
                                         ) : (
-                                          '—'
+                                          r.stage
                                         )}
                                       </td>
                                       <td className="py-2.5 text-xs text-muted-foreground">
-                                        <p>{r.validatedAt}</p>
-                                        <p className="font-medium text-foreground">{r.validatedBy}</p>
+                                        {r.validated_at ? new Date(r.validated_at).toLocaleString('es-EC') : '\u2014'}
                                       </td>
                                     </tr>
                                   ))}
