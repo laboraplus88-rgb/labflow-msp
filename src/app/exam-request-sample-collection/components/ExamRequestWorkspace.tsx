@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { CATALOG, CATEGORIES, TubeKey, Priority, OrderType } from '@/lib/labData';
+import { CATALOG, TubeKey, Priority, OrderType } from '@/lib/labData';
 import PatientForm, { PatientFormValues } from './PatientForm';
 import ExamCatalog from './ExamCatalog';
 import OrderSummary from './OrderSummary';
@@ -57,14 +57,6 @@ export default function ExamRequestWorkspace() {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const toggleMany = (ids: string[], on: boolean) => {
-    setSelected((prev) => {
-      const set = new Set(prev);
-      ids.forEach((id) => (on ? set.add(id) : set.delete(id)));
-      return Array.from(set);
-    });
-  };
-
   const selectedExams = useMemo(() => CATALOG.filter((c) => selected.includes(c.id)), [selected]);
 
   const tubeGroups = useMemo(() => {
@@ -73,15 +65,6 @@ export default function ExamRequestWorkspace() {
       map.set(e.tube, [...(map.get(e.tube) ?? []), e.name]);
     });
     return Array.from(map.entries()).map(([tube, exams]) => ({ tube, exams }));
-  }, [selectedExams]);
-
-  const countsByCategory = useMemo(() => {
-    const out: Record<string, number> = {};
-    CATEGORIES.forEach((c) => (out[c] = 0));
-    selectedExams.forEach((e) => {
-      out[e.category] = (out[e.category] ?? 0) + 1;
-    });
-    return out;
   }, [selectedExams]);
 
   const values = form.watch();
@@ -163,7 +146,7 @@ export default function ExamRequestWorkspace() {
       setToast(`Solicitud ${data.request.code} guardada: ${selected.length} examenes.`);
       setSelected([]);
     } catch {
-      setToast('Error de conexion con Supabase. Revise .env.local');
+      setToast('Error de conexion con Supabase. Revise variables de entorno.');
     } finally {
       setSubmitting(false);
     }
@@ -177,12 +160,7 @@ export default function ExamRequestWorkspace() {
     >
       <div className="min-w-0 space-y-4 sm:space-y-6">
         <PatientForm form={form} />
-        <ExamCatalog
-          selected={selected}
-          onToggle={toggle}
-          onToggleMany={toggleMany}
-          countsByCategory={countsByCategory}
-        />
+        <ExamCatalog selected={selected} onToggle={toggle} />
       </div>
       <OrderSummary
         selectedExams={selectedExams}
