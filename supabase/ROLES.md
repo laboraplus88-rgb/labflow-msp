@@ -1,43 +1,30 @@
-# LabFlow — Roles, RLS y RPCs
+# LabFlow — Roles y cuentas
 
-## Roles (`profiles.role`)
+## Cuentas oficiales de este despliegue
 
-| Rol | Código | Puede |
-|-----|--------|-------|
-| Jefa de laboratorio | `jefa` | Todo: validar, facilities, catalog, KPIs globales |
-| Bioquímico / Tecnólogo | `tecnologo` | Procesar, ingresar resultados, validar |
-| Toma de muestras | `toma` | Solo etapas tempranas (Solicitado → Recibida) |
-| Médico solicitante | `medico` | Crear órdenes propias, ver sus pacientes/resultados |
+| Email | Rol | Uso |
+|-------|-----|-----|
+| `laboraplus88@gmail.com` | **superadmin** | Admin global · todos los labs · `/admin-global` |
+| `jefatura@labflow.msp.gob.ec` | **jefa** | Demo laboratorio C.S. El Paraiso · `/admin-lab` |
 
-## Helpers (schema `private`)
+Cuentas demo opcionales (crear en Auth + seed):
 
-- `private.current_app_role()`
-- `private.is_lab_staff()`
-- `private.is_jefa_or_tecnologo()`
-- `private.can_validate_results()`
-- `private.can_collect_samples()`
+| Email | Rol | Password sugerida |
+|-------|-----|-------------------|
+| tecnologo@labflow.msp.gob.ec | tecnologo | Lab2026!Tecn |
+| muestras@labflow.msp.gob.ec | toma | Lab2026!Toma |
+| medico@labflow.msp.gob.ec | medico | Lab2026!Medi |
 
-## RPCs públicas
+Password jefa demo: `Lab2026!Jefa` (la de superadmin la defines al crear el user en Auth).
 
-| RPC | Uso |
-|-----|-----|
-| `my_role()` | Rol del usuario logueado |
-| `dashboard_stats()` | KPIs filtrados por rol (médico vs lab) |
-| `create_exam_order(...)` | Orden atómica + samples + tests |
-| `advance_test_stage(...)` | Cambia etapa validando permisos de rol |
+## Orden
 
-## Orden de ejecución SQL
+1. Authentication → Users → crear cada email (Auto Confirm)
+2. Ejecutar `seed_roles.sql`
+3. Si usas multi-tenant: `04_multitenant.sql` antes o con laboratories ya creados
 
-1. `supabase/schema.sql`
-2. Crear usuarios en Auth
-3. `supabase/seed_roles.sql`
-4. `supabase/03_rpc_roles_rls.sql`
+## Quién crea a quién
 
-## Cuentas seed
-
-| Email | Password | Rol |
-|-------|----------|-----|
-| jefatura@labflow.msp.gob.ec | Lab2026!Jefa | jefa |
-| tecnologo@labflow.msp.gob.ec | Lab2026!Tecn | tecnologo |
-| muestras@labflow.msp.gob.ec | Lab2026!Toma | toma |
-| medico@labflow.msp.gob.ec | Lab2026!Medi | medico |
+- **superadmin**: crea jefas de lab (`create_lab_admin`)
+- **jefa**: asigna tecnologo / toma / medico de su lab (`assign_staff_to_lab`)
+- Registro público en la app: solo **medico**
