@@ -18,7 +18,6 @@ export default function AuthCard() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [role, setRole] = useState('medico');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,27 +39,42 @@ export default function AuthCard() {
       if (tab === 'login') {
         const { error: err } = await signIn(email, password);
         if (err) {
-          setError(err.message || 'No se pudo iniciar sesion.');
+          const msg = err.message || 'No se pudo iniciar sesion.';
+          if (/invalid login credentials/i.test(msg)) {
+            setError(
+              'Credenciales invalidas. Cree el usuario en Supabase Auth (Authentication → Users) y luego ejecute seed_roles.sql. Las chips solo rellenan el formulario.'
+            );
+          } else {
+            setError(msg);
+          }
           setLoading(false);
           return;
         }
       } else {
+        // Alta publica: solo medico. Jefa / tecnologo / toma los asigna admin global o jefa.
         const { error: err } = await signUp(
           email,
           password,
           fullName || email.split('@')[0],
-          role
+          'medico'
         );
         if (err) {
           setError(err.message || 'No se pudo crear la cuenta.');
           setLoading(false);
           return;
         }
+        setError('');
+        setTab('login');
+        setError(
+          'Cuenta de medico creada. Si Supabase pide confirmar email, reviselo. Jefa y personal de lab los crea el admin.'
+        );
+        setLoading(false);
+        return;
       }
       router.push('/');
       router.refresh();
     } catch {
-      setError('Error de conexion con Supabase. Revisa .env.local');
+      setError('Error de conexion con Supabase. Revise variables de entorno en Vercel.');
     } finally {
       setLoading(false);
     }
@@ -78,7 +92,10 @@ export default function AuthCard() {
           <div className="mb-6 grid grid-cols-2 rounded-lg bg-muted p-1">
             <button
               type="button"
-              onClick={() => setTab('login')}
+              onClick={() => {
+                setTab('login');
+                setError('');
+              }}
               className={`rounded-md py-2 text-sm font-semibold transition-all ${
                 tab === 'login' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
               }`}
@@ -87,7 +104,10 @@ export default function AuthCard() {
             </button>
             <button
               type="button"
-              onClick={() => setTab('signup')}
+              onClick={() => {
+                setTab('signup');
+                setError('');
+              }}
               className={`rounded-md py-2 text-sm font-semibold transition-all ${
                 tab === 'signup' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
               }`}
@@ -98,16 +118,22 @@ export default function AuthCard() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {tab === 'signup' && (
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">Nombre completo</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
-                  placeholder="Dra. Tatiana Mejia"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">Nombre completo</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+                    placeholder="Dr. Nombre Apellido"
+                  />
+                </div>
+                <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  El registro publico solo crea <strong className="text-foreground">medico solicitante</strong>.
+                  Jefa, tecnologo y toma de muestras los asigna el <strong className="text-foreground">admin global</strong> o la jefa del laboratorio (panel Admin).
+                </p>
+              </>
             )}
 
             <div>
@@ -144,22 +170,6 @@ export default function AuthCard() {
               </div>
             </div>
 
-            {tab === 'signup' && (
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">Rol en el laboratorio</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
-                >
-                  <option value="medico">Medico solicitante</option>
-                  <option value="tecnologo">Bioquimico / Tecnologo</option>
-                  <option value="toma">Toma de muestras</option>
-                  <option value="jefa">Jefa de laboratorio</option>
-                </select>
-              </div>
-            )}
-
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <button
@@ -168,13 +178,15 @@ export default function AuthCard() {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
             >
               {tab === 'login' ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-              {loading ? 'Procesando...' : tab === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}
+              {loading ? 'Procesando...' : tab === 'login' ? 'Iniciar sesion' : 'Crear cuenta de medico'}
             </button>
           </form>
 
           {tab === 'login' && (
             <div className="mt-6">
-              <p className="mb-2 text-xs font-semibold text-muted-foreground">Cuentas (tras seed en Supabase)</p>
+              <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                Cuentas demo (rellenan el formulario; deben existir en Supabase Auth)
+              </p>
               <div className="flex flex-wrap gap-2">
                 {ACCOUNTS.map((a) => {
                   const Icon = a.icon;
