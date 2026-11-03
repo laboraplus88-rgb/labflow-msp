@@ -16,6 +16,17 @@ export async function getProfile() {
   return data;
 }
 
+/** Rol de app: jefa | tecnologo | toma | medico */
+export async function getMyRole(): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc('my_role');
+  if (error) {
+    const profile = await getProfile();
+    return profile?.role ?? null;
+  }
+  return data as string | null;
+}
+
 export async function signIn(email: string, password: string) {
   const supabase = createClient();
   return supabase.auth.signInWithPassword({ email, password });
@@ -51,6 +62,11 @@ export async function searchPatients(query: string) {
   return { data: data ?? [], error };
 }
 
+export async function getPatientById(id: string) {
+  const supabase = createClient();
+  return supabase.from('patients').select('*').eq('id', id).single();
+}
+
 export async function createPatient(payload: {
   historia?: string;
   cedula: string;
@@ -76,12 +92,11 @@ export async function getFacilities() {
 
 export async function getCatalog() {
   const supabase = createClient();
-  return supabase.from('exam_catalog').select('*').eq('active', true).order('category').order('name');
+  return supabase.from('exam_catalog').select('*').eq('active', true).order('category');
 }
 
 export async function createExamRequest(payload: {
   patient_id: string;
-  doctor_id?: string;
   order_type: OrderType;
   priority: Priority;
   facility_id?: string;
@@ -89,24 +104,42 @@ export async function createExamRequest(payload: {
   exams: { exam_code: string; exam_name: string; category: string; tube_type: string; range_text?: string; unit?: string }[];
 }) {
   const supabase = createClient();
-  const user = await getSessionUser();
 
+  const { data: rpcData, error: rpcError } = await supabase.rpc('create_exam_order', {
+    p_patient_id: payload.patient_id,
+    p_order_type: payload.order_type,
+    p_priority: payload.priority,
+    p_facility_id: payload.facility_id ?? null,
+    p_diagnosis: payload.diagnosis ?? null,
+    p_exams: payload.exams,
+  });
+
+  if (!rpcError && rpcData) {
+    return {
+      data: { request: rpcData.request, samples: rpcData.samples, tests: rpcData.tests },
+      error: null,
+    };
+  }
+
+  const user = await getSessionUser();
+  const code = `REQ-${Date.now().toString(36).toUpperCase()}`;
   const { data: request, error: reqErr } = await supabase
     .from('exam_requests')
     .insert({
+      code,
       patient_id: payload.patient_id,
-      doctor_id: payload.doctor_id ?? user?.id,
+      doctor_id: user?.id,
       order_type: payload.order_type,
       priority: payload.priority,
       facility_id: payload.facility_id,
       diagnosis: payload.diagnosis,
-      created_by: user?.id,
       status: 'registrada',
+      created_by: user?.id,
     })
     .select()
     .single();
 
-  if (reqErr || !request) return { data: null, error: reqErr };
+  if (reqErr || !request) return { data: null, error: reqErr ?? new Error('No request') };
 
   const byTube = new Map<string, typeof payload.exams>();
   payload.exams.forEach((e) => {
@@ -115,52 +148,68 @@ export async function createExamRequest(payload: {
     byTube.set(e.tube_type, list);
   });
 
-  const samplesPayload = Array.from(byTube.entries()).map(([tube_type, exams]) => ({
-    request_id: request.id,
-    patient_id: payload.patient_id,
-    tube_type,
-    tube_label: exams.map((e) => e.exam_name).join(' · '),
-    status: 'generada' as const,
-    collected_by: user?.id,
-  }));
+  const samples: { id: string; code: string; tube_type: string }[] = [];
+  let i = 0;
+  for (const [tube, exams] of byTube) {
+    i += 1;
+    const scode = `M-${Date.now().toString(36).toUpperCase()}-${i}`;
+    const { data: sample } = await supabase
+      .from('samples')
+      .insert({ code: scode, request_id: request.id, patient_id: payload.patient_id, tube_type: tube, status: 'generada' })
+      .select()
+      .single();
+    if (sample) samples.push(sample);
 
-  const { data: samples, error: sampErr } = await supabase.from('samples').insert(samplesPayload).select();
-  if (sampErr) return { data: { request, samples: [], tests: [] }, error: sampErr };
+    await supabase.from('tests').insert(
+      exams.map((e) => ({
+        code: `T-${Date.now().toString(36)}-${e.exam_code}`,
+        request_id: request.id,
+        patient_id: payload.patient_id,
+        sample_id: sample?.id,
+        exam_code: e.exam_code,
+        exam_name: e.exam_name,
+        category: e.category,
+        stage: 'Solicitado' as Stage,
+        priority: payload.priority,
+        result_range: e.range_text,
+        result_unit: e.unit,
+      }))
+    );
+  }
 
-  const tubeToSample = new Map((samples ?? []).map((s) => [s.tube_type, s.id]));
-
-  const testsPayload = payload.exams.map((e) => ({
-    request_id: request.id,
-    patient_id: payload.patient_id,
-    sample_id: tubeToSample.get(e.tube_type) ?? null,
-    exam_code: e.exam_code,
-    exam_name: e.exam_name,
-    category: e.category,
-    stage: 'Solicitado' as Stage,
-    priority: payload.priority,
-    result_range: e.range_text ?? null,
-    result_unit: e.unit ?? null,
-  }));
-
-  const { data: tests, error: testErr } = await supabase.from('tests').insert(testsPayload).select();
-
-  return {
-    data: { request, samples: samples ?? [], tests: tests ?? [] },
-    error: testErr,
-  };
+  return { data: { request, samples, tests: [] }, error: null };
 }
 
-export async function listTests() {
+export async function listTests(filters?: { stage?: string; priority?: string }) {
   const supabase = createClient();
-  return supabase
+  let q = supabase
     .from('tests')
-    .select('*, patients(primer_nombre, apellido_paterno, apellido_materno, cedula)')
+    .select('*, patients(primer_nombre, apellido_paterno, apellido_materno, cedula), exam_requests(order_type, priority)')
     .order('created_at', { ascending: false })
-    .limit(100);
+    .limit(200);
+
+  if (filters?.stage && filters.stage !== 'Todas') q = q.eq('stage', filters.stage);
+  if (filters?.priority && filters.priority !== 'Todas') q = q.eq('priority', filters.priority);
+  return q;
 }
 
-export async function updateTestStage(id: string, stage: Stage, extra?: { result?: string; result_flag?: string; note?: string }) {
+export async function updateTestStage(
+  id: string,
+  stage: Stage,
+  extra?: { result?: string; result_flag?: string; note?: string }
+) {
   const supabase = createClient();
+
+  const { data: rpcRow, error: rpcErr } = await supabase.rpc('advance_test_stage', {
+    p_test_id: id,
+    p_stage: stage,
+    p_result: extra?.result ?? null,
+    p_result_flag: extra?.result_flag ?? null,
+    p_note: extra?.note ?? null,
+  });
+
+  if (!rpcErr && rpcRow) return { data: rpcRow, error: null };
+
   const user = await getSessionUser();
   const patch: Record<string, unknown> = {
     stage,
@@ -182,20 +231,39 @@ export async function getPatientOrders(patientId: string) {
   const supabase = createClient();
   return supabase
     .from('exam_requests')
-    .select('*, tests(*), facilities(name)')
+    .select('*, tests(*), facilities(name), profiles:doctor_id(full_name)')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false });
 }
 
+export async function listRecentRequests() {
+  const supabase = createClient();
+  return supabase
+    .from('exam_requests')
+    .select('*, patients(primer_nombre, apellido_paterno, apellido_materno, cedula), tests(id)')
+    .order('created_at', { ascending: false })
+    .limit(30);
+}
+
 export async function dashboardStats() {
   const supabase = createClient();
+  const { data, error } = await supabase.rpc('dashboard_stats');
+  if (!error && data) {
+    return {
+      samplesToday: data.samplesToday ?? 0,
+      testsToday: data.testsToday ?? 0,
+      pending: data.pending ?? 0,
+      urgentOpen: data.urgentOpen ?? 0,
+      validatedToday: data.validatedToday ?? 0,
+      role: data.role as string | undefined,
+    };
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const iso = today.toISOString();
-
-  const [samples, tests, pending, urgent] = await Promise.all([
-    supabase.from('samples').select('id', { count: 'exact', head: true }).gte('created_at', iso),
-    supabase.from('tests').select('id', { count: 'exact', head: true }).gte('created_at', iso),
+  const [samples, tests, pending, overdue] = await Promise.all([
+    supabase.from('samples').select('id', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+    supabase.from('tests').select('id', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
     supabase.from('tests').select('id', { count: 'exact', head: true }).not('stage', 'in', '("Validado","Entregado")'),
     supabase.from('tests').select('id', { count: 'exact', head: true }).eq('priority', 'Urgente').not('stage', 'in', '("Validado","Entregado")'),
   ]);
@@ -204,6 +272,6 @@ export async function dashboardStats() {
     samplesToday: samples.count ?? 0,
     testsToday: tests.count ?? 0,
     pending: pending.count ?? 0,
-    urgentOpen: urgent.count ?? 0,
+    urgentOpen: overdue.count ?? 0,
   };
 }
