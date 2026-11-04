@@ -15,4 +15,4 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - run: supabase functions deploy create-staff-user --project-ref $PROJECT_REF --no-verify-jwt
+            - run: supabase functions deploy create-staff-user --project-ref $PROJECT_REF --no-verify-jwt --yes
