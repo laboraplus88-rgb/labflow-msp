@@ -1,5 +1,4 @@
-// LabFlow shared mock data and types
-// BACKEND: replace with Supabase queries
+// LabFlow shared catalog and types (UTF-8)
 
 export type Priority = 'Urgente' | 'Rutina' | 'Control';
 export type OrderType = 'Emergencia' | 'Consulta externa' | 'Ambulatorio';
@@ -22,7 +21,7 @@ export const TUBES: Record<TubeKey, { label: string; note: string; swatch: strin
   gray: { label: 'Tubo gris (fluoruro)', note: 'Glucosa', swatch: 'bg-gray-400' },
   urine: { label: 'Frasco de orina', note: 'Orina', swatch: 'bg-amber-200' },
   stool: { label: 'Frasco de heces', note: 'Heces', swatch: 'bg-amber-700' },
-  other: { label: 'Otro', note: 'Otro', swatch: 'bg-slate-300' },
+  other: { label: 'Recipiente especial', note: 'Especial', swatch: 'bg-slate-300' },
 };
 
 export interface CatalogExam {
@@ -45,26 +44,86 @@ export const CATEGORIES = [
 ] as const;
 
 export const CATALOG: CatalogExam[] = [
+  // Hematologia
   { id: 'h-01', name: 'Biometria hematica', category: 'Hematologia', range: 'Ver informe', unit: '-', tube: 'purple' },
   { id: 'h-02', name: 'Hemoglobina', category: 'Hematologia', range: '12.0-16.0', unit: 'g/dL', tube: 'purple' },
   { id: 'h-03', name: 'Hematocrito', category: 'Hematologia', range: '36-46', unit: '%', tube: 'purple' },
   { id: 'h-04', name: 'Leucocitos', category: 'Hematologia', range: '4.5-11.0', unit: 'x10^3/uL', tube: 'purple' },
   { id: 'h-05', name: 'Plaquetas', category: 'Hematologia', range: '150-450', unit: 'x10^3/uL', tube: 'purple' },
+  { id: 'h-06', name: 'Grupo sanguineo', category: 'Hematologia', range: 'A, B, AB, O / Rh', unit: '-', tube: 'purple' },
+  { id: 'h-07', name: 'Reticulocitos', category: 'Hematologia', range: '0.5-2.5', unit: '%', tube: 'purple' },
+  { id: 'h-08', name: 'Indices hematicos (VCM, HCM, CHCM)', category: 'Hematologia', range: 'VCM 80-100', unit: 'fL', tube: 'purple' },
   { id: 'h-09', name: 'Tiempo de protrombina (TP)', category: 'Hematologia', range: '11-13.5', unit: 's', tube: 'blue' },
   { id: 'h-10', name: 'T. tromboplastina parcial (TTP)', category: 'Hematologia', range: '25-35', unit: 's', tube: 'blue' },
+  { id: 'h-11', name: 'Tiempo de coagulacion', category: 'Hematologia', range: '5-10', unit: 'min', tube: 'blue' },
+  { id: 'h-12', name: 'Tiempo de sangria', category: 'Hematologia', range: '1-6', unit: 'min', tube: 'other' },
+  { id: 'h-13', name: 'Hematozoario', category: 'Hematologia', range: 'Negativo', unit: '-', tube: 'purple' },
+  { id: 'h-14', name: 'Celula L.E.', category: 'Hematologia', range: 'Negativo', unit: '-', tube: 'yellow' },
+  { id: 'h-15', name: 'Drepanocitos', category: 'Hematologia', range: 'Negativo', unit: '-', tube: 'purple' },
+  { id: 'h-16', name: 'Coombs directo', category: 'Hematologia', range: 'Negativo', unit: '-', tube: 'purple' },
+  { id: 'h-17', name: 'Coombs indirecto', category: 'Hematologia', range: 'Negativo', unit: '-', tube: 'yellow' },
+  { id: 'h-18', name: 'Velocidad de sedimentacion (VSG)', category: 'Hematologia', range: '0-20', unit: 'mm/h', tube: 'purple' },
+  { id: 'h-19', name: 'Frotis de sangre periferica', category: 'Hematologia', range: 'Ver informe', unit: '-', tube: 'purple' },
+  // Uroanalisis
   { id: 'u-01', name: 'Examen general de orina', category: 'Uroanalisis', range: 'Ver informe', unit: '-', tube: 'urine' },
+  { id: 'u-02', name: 'Microscopia de orina', category: 'Uroanalisis', range: 'Ver informe', unit: '-', tube: 'urine' },
+  { id: 'u-03', name: 'Proteinuria 24 h', category: 'Uroanalisis', range: '< 150', unit: 'mg/24h', tube: 'urine' },
+  { id: 'u-04', name: 'Depuracion de creatinina', category: 'Uroanalisis', range: '90-120', unit: 'mL/min', tube: 'urine' },
+  { id: 'u-05', name: 'Gravidez en orina (hCG)', category: 'Uroanalisis', range: 'Negativo', unit: '-', tube: 'urine' },
+  // Coprologico
   { id: 'c-01', name: 'Coproparasitario', category: 'Coprologico', range: 'Negativo', unit: '-', tube: 'stool' },
+  { id: 'c-02', name: 'Coprologico funcional', category: 'Coprologico', range: 'Ver informe', unit: '-', tube: 'stool' },
+  { id: 'c-03', name: 'Sangre oculta en heces', category: 'Coprologico', range: 'Negativo', unit: '-', tube: 'stool' },
+  { id: 'c-04', name: 'Rotavirus / Adenovirus', category: 'Coprologico', range: 'Negativo', unit: '-', tube: 'stool' },
+  // Quimica sanguinea
   { id: 'q-01', name: 'Glucosa en ayunas', category: 'Quimica sanguinea', range: '70-100', unit: 'mg/dL', tube: 'gray' },
+  { id: 'q-02', name: 'Glucosa postprandial', category: 'Quimica sanguinea', range: '< 140', unit: 'mg/dL', tube: 'gray' },
   { id: 'q-03', name: 'Urea', category: 'Quimica sanguinea', range: '15-45', unit: 'mg/dL', tube: 'yellow' },
   { id: 'q-04', name: 'Creatinina', category: 'Quimica sanguinea', range: '0.6-1.2', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-05', name: 'Acido urico', category: 'Quimica sanguinea', range: '3.5-7.2', unit: 'mg/dL', tube: 'yellow' },
   { id: 'q-06', name: 'Albumina', category: 'Quimica sanguinea', range: '3.5-5.0', unit: 'g/dL', tube: 'yellow' },
+  { id: 'q-07', name: 'Proteinas totales', category: 'Quimica sanguinea', range: '6.0-8.3', unit: 'g/dL', tube: 'yellow' },
+  { id: 'q-08', name: 'Bilirrubina total', category: 'Quimica sanguinea', range: '0.1-1.2', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-09', name: 'Bilirrubina directa', category: 'Quimica sanguinea', range: '0.0-0.3', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-10', name: 'TGO (AST)', category: 'Quimica sanguinea', range: '10-40', unit: 'U/L', tube: 'yellow' },
+  { id: 'q-11', name: 'TGP (ALT)', category: 'Quimica sanguinea', range: '7-56', unit: 'U/L', tube: 'yellow' },
+  { id: 'q-12', name: 'Fosfatasa alcalina', category: 'Quimica sanguinea', range: '40-129', unit: 'U/L', tube: 'yellow' },
+  { id: 'q-13', name: 'GGT', category: 'Quimica sanguinea', range: '9-48', unit: 'U/L', tube: 'yellow' },
+  { id: 'q-14', name: 'Amilasa', category: 'Quimica sanguinea', range: '30-110', unit: 'U/L', tube: 'yellow' },
   { id: 'q-15', name: 'Colesterol total', category: 'Quimica sanguinea', range: '< 200', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-16', name: 'HDL colesterol', category: 'Quimica sanguinea', range: '> 40', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-17', name: 'LDL colesterol', category: 'Quimica sanguinea', range: '< 100', unit: 'mg/dL', tube: 'yellow' },
   { id: 'q-18', name: 'Trigliceridos', category: 'Quimica sanguinea', range: '< 150', unit: 'mg/dL', tube: 'yellow' },
   { id: 'q-19', name: 'Hierro serico', category: 'Quimica sanguinea', range: '60-170', unit: 'ug/dL', tube: 'yellow' },
+  { id: 'q-20', name: 'Calcio', category: 'Quimica sanguinea', range: '8.5-10.5', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-21', name: 'Fosforo', category: 'Quimica sanguinea', range: '2.5-4.5', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-22', name: 'Magnesio', category: 'Quimica sanguinea', range: '1.7-2.2', unit: 'mg/dL', tube: 'yellow' },
+  { id: 'q-23', name: 'Sodio', category: 'Quimica sanguinea', range: '135-145', unit: 'mEq/L', tube: 'green' },
+  { id: 'q-24', name: 'Potasio', category: 'Quimica sanguinea', range: '3.5-5.1', unit: 'mEq/L', tube: 'green' },
+  { id: 'q-25', name: 'Cloro', category: 'Quimica sanguinea', range: '98-107', unit: 'mEq/L', tube: 'green' },
+  // Serologia
   { id: 's-01', name: 'VDRL', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
+  { id: 's-02', name: 'HIV 1/2', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
+  { id: 's-03', name: 'HBsAg', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
+  { id: 's-04', name: 'Anti-HBc', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
+  { id: 's-05', name: 'Anti-HCV', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
+  { id: 's-06', name: 'ASO', category: 'Serologia', range: '< 200', unit: 'UI/mL', tube: 'yellow' },
+  { id: 's-07', name: 'PCR cuantitativa', category: 'Serologia', range: '< 5', unit: 'mg/L', tube: 'yellow' },
+  { id: 's-08', name: 'Factor reumatoide', category: 'Serologia', range: '< 14', unit: 'UI/mL', tube: 'yellow' },
+  { id: 's-09', name: 'Toxoplasma IgG / IgM', category: 'Serologia', range: 'Ver informe', unit: '-', tube: 'yellow' },
+  // Bacteriologia
   { id: 'b-01', name: 'Cultivo de orina', category: 'Bacteriologia', range: 'Sin crecimiento', unit: '-', tube: 'urine' },
+  { id: 'b-02', name: 'Cultivo de heces', category: 'Bacteriologia', range: 'Sin patogenos', unit: '-', tube: 'stool' },
   { id: 'b-03', name: 'Gram', category: 'Bacteriologia', range: 'Ver informe', unit: '-', tube: 'other' },
+  { id: 'b-04', name: 'Cultivo de secrecion', category: 'Bacteriologia', range: 'Ver informe', unit: '-', tube: 'other' },
+  { id: 'b-05', name: 'Hemocultivo', category: 'Bacteriologia', range: 'Sin crecimiento', unit: '-', tube: 'other' },
+  // Otros
   { id: 'o-01', name: 'TSH', category: 'Otros', range: '0.4-4.0', unit: 'mUI/L', tube: 'yellow' },
+  { id: 'o-02', name: 'T4 libre', category: 'Otros', range: '0.8-1.8', unit: 'ng/dL', tube: 'yellow' },
+  { id: 'o-03', name: 'T3 total', category: 'Otros', range: '80-200', unit: 'ng/dL', tube: 'yellow' },
+  { id: 'o-04', name: 'HbA1c', category: 'Otros', range: '< 5.7', unit: '%', tube: 'purple' },
+  { id: 'o-05', name: 'PSA total', category: 'Otros', range: '< 4.0', unit: 'ng/mL', tube: 'yellow' },
+  { id: 'o-06', name: 'Ferritina', category: 'Otros', range: '15-150', unit: 'ng/mL', tube: 'yellow' },
 ];
 
 export const STAGES: Stage[] = [
@@ -109,34 +168,14 @@ export function formatMinutes(m: number): string {
   return min ? h + ' h ' + min + ' min' : h + ' h';
 }
 
-export interface WorkflowTest {
-  id: string;
-  patient: string;
-  cedula: string;
-  exam: string;
-  category: string;
-  sample: string;
-  orderType: OrderType;
-  priority: Priority;
-  doctor: string;
-  tech: string;
-  validator: string;
-  stage: Stage;
-  minutesElapsed: number;
-  result: string;
-  note: string;
-}
+export const FACILITIES = [
+  { id: 'cs-paraiso', name: 'C.S. El Paraiso', type: 'Centro de Salud', code: '493' },
+  { id: 'sc-sanroque', name: 'Subcentro de Salud San Roque', type: 'Subcentro', code: '493-01' },
+  { id: 'sc-chimbacalle', name: 'Subcentro Chimbacalle', type: 'Subcentro', code: '493-02' },
+  { id: 'sc-laecuatorial', name: 'Subcentro La Ecuatorial', type: 'Subcentro', code: '493-03' },
+] as const;
 
-export const WORKFLOW_TESTS: WorkflowTest[] = [
-  { id: 'T-24884', patient: 'Macias Zambrano Jose Luis', cedula: '1305556677', exam: 'Tiempo de protrombina (TP)', category: 'Hematologia', sample: 'M-88101', orderType: 'Emergencia', priority: 'Urgente', doctor: 'Dr. Mauricio Quishpe', tech: 'Lcda. Andrea Bravo', validator: 'Dra. Tatiana Mejia', stage: 'Recibida en laboratorio', minutesElapsed: 71, result: '', note: '' },
-  { id: 'T-24885', patient: 'Macias Zambrano Jose Luis', cedula: '1305556677', exam: 'T. tromboplastina parcial (TTP)', category: 'Hematologia', sample: 'M-88101', orderType: 'Emergencia', priority: 'Urgente', doctor: 'Dr. Mauricio Quishpe', tech: 'Lcda. Andrea Bravo', validator: 'Dra. Tatiana Mejia', stage: 'Recibida en laboratorio', minutesElapsed: 71, result: '', note: '' },
-  { id: 'T-24880', patient: 'Maldonado Cuesta Pedro Pablo', cedula: '1712098345', exam: 'Cultivo de orina', category: 'Bacteriologia', sample: 'M-88090', orderType: 'Consulta externa', priority: 'Rutina', doctor: 'Dra. Juana Sarango', tech: 'Bq. Diana Pillajo', validator: 'Dra. Tatiana Mejia', stage: 'En proceso', minutesElapsed: 1570, result: '', note: 'Incubacion 24h' },
-  { id: 'T-24891', patient: 'Espinoza Burbano Maria V.', cedula: '0912345678', exam: 'Gram', category: 'Bacteriologia', sample: 'M-88120', orderType: 'Emergencia', priority: 'Urgente', doctor: 'Dr. Mauricio Quishpe', tech: 'Bq. Diana Pillajo', validator: 'Dra. Tatiana Mejia', stage: 'Resultado ingresado', minutesElapsed: 55, result: 'Cocos Gram +', note: '' },
-  { id: 'T-24870', patient: 'Rodriguez Lopez Maria Jose', cedula: '0712345678', exam: 'Glucosa en ayunas', category: 'Quimica sanguinea', sample: 'M-88050', orderType: 'Emergencia', priority: 'Urgente', doctor: 'Dr. Mauricio Quishpe', tech: 'Bq. Diana Pillajo', validator: 'Dra. Tatiana Mejia', stage: 'Validado', minutesElapsed: 48, result: '186 mg/dL', note: '' },
-  { id: 'T-24860', patient: 'Fernandez Pablo Carlos', cedula: '0702736620', exam: 'Trigliceridos', category: 'Quimica sanguinea', sample: 'M-88231', orderType: 'Consulta externa', priority: 'Rutina', doctor: 'Dra. Paola Jaramillo', tech: 'Bq. Marco Naranjo', validator: 'Dra. Tatiana Mejia', stage: 'Entregado', minutesElapsed: 180, result: '168 mg/dL', note: '' },
-];
-
-export interface RecentRequest {
+export const RECENT_REQUESTS: {
   id: string;
   patient: string;
   cedula: string;
@@ -147,137 +186,7 @@ export interface RecentRequest {
   tubes: number;
   status: string;
   time: string;
-}
+}[] = [];
 
-export const RECENT_REQUESTS: RecentRequest[] = [
-  { id: 'SOL-0930', patient: 'Fernandez Pablo Carlos', cedula: '0702736620', doctor: 'Dra. Paola Jaramillo', orderType: 'Consulta externa', priority: 'Rutina', exams: 2, tubes: 2, status: 'Muestras recolectadas', time: '14:05' },
-  { id: 'SOL-0921', patient: 'Macias Zambrano Jose Luis', cedula: '1305556677', doctor: 'Dr. Mauricio Quishpe', orderType: 'Emergencia', priority: 'Urgente', exams: 2, tubes: 1, status: 'Pendiente de toma', time: '11:48' },
-  { id: 'SOL-0912', patient: 'Rodriguez Lopez Maria Jose', cedula: '0712345678', doctor: 'Dr. Mauricio Quishpe', orderType: 'Emergencia', priority: 'Urgente', exams: 3, tubes: 2, status: 'Muestras recolectadas', time: '08:15' },
-];
-
-export interface PatientResult {
-  examId: string;
-  examName: string;
-  category: string;
-  result: string;
-  unit: string;
-  range: string;
-  flag: 'normal' | 'alto' | 'bajo' | 'critico' | null;
-  validatedAt: string;
-  validatedBy: string;
-}
-
-export interface PatientOrderHistory {
-  requestId: string;
-  date: string;
-  time: string;
-  orderType: OrderType;
-  priority: Priority;
-  doctor: string;
-  origin: string;
-  facility: string;
-  status: string;
-  results: PatientResult[];
-}
-
-export interface PatientRecord {
-  id: string;
-  historia: string;
-  cedula: string;
-  apellidoPaterno: string;
-  apellidoMaterno: string;
-  primerNombre: string;
-  segundoNombre: string;
-  edad: number;
-  sexo: 'F' | 'M';
-  provincia: string;
-  canton: string;
-  parroquia: string;
-  orders: PatientOrderHistory[];
-}
-
-export const PATIENTS: PatientRecord[] = [
-  {
-    id: 'pat-001',
-    historia: '07123456789',
-    cedula: '0712345678',
-    apellidoPaterno: 'Rodriguez',
-    apellidoMaterno: 'Lopez',
-    primerNombre: 'Maria',
-    segundoNombre: 'Jose',
-    edad: 42,
-    sexo: 'F',
-    provincia: 'Pichincha',
-    canton: 'Quito',
-    parroquia: 'Chimbacalle',
-    orders: [
-      {
-        requestId: 'SOL-0912',
-        date: '2026-10-30',
-        time: '08:15',
-        orderType: 'Emergencia',
-        priority: 'Urgente',
-        doctor: 'Dr. Mauricio Quishpe',
-        origin: 'Emergencia',
-        facility: 'C.S. El Paraiso',
-        status: 'Entregado',
-        results: [
-          { examId: 'q-01', examName: 'Glucosa en ayunas', category: 'Quimica sanguinea', result: '186', unit: 'mg/dL', range: '70-100', flag: 'alto', validatedAt: '30/10/26 09:02', validatedBy: 'Bq. Diana Pillajo' },
-          { examId: 'q-04', examName: 'Creatinina', category: 'Quimica sanguinea', result: '1.9', unit: 'mg/dL', range: '0.6-1.2', flag: 'critico', validatedAt: '30/10/26 09:05', validatedBy: 'Bq. Diana Pillajo' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'pat-004',
-    historia: '07027366200',
-    cedula: '0702736620',
-    apellidoPaterno: 'Fernandez',
-    apellidoMaterno: 'Pablo',
-    primerNombre: 'Carlos',
-    segundoNombre: '',
-    edad: 34,
-    sexo: 'M',
-    provincia: 'Pichincha',
-    canton: 'Quito',
-    parroquia: 'El Condado',
-    orders: [
-      {
-        requestId: 'SOL-0930',
-        date: '2026-10-30',
-        time: '14:05',
-        orderType: 'Consulta externa',
-        priority: 'Rutina',
-        doctor: 'Dra. Paola Jaramillo',
-        origin: 'Consulta externa',
-        facility: 'C.S. El Paraiso',
-        status: 'Entregado',
-        results: [
-          { examId: 'q-18', examName: 'Trigliceridos', category: 'Quimica sanguinea', result: '168', unit: 'mg/dL', range: '< 150', flag: 'alto', validatedAt: '30/10/26 16:40', validatedBy: 'Bq. Marco Naranjo' },
-        ],
-      },
-    ],
-  },
-];
-
-export function searchPatients(query: string): PatientRecord[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return PATIENTS;
-  return PATIENTS.filter(
-    (p) =>
-      p.cedula.includes(q) ||
-      p.historia.includes(q) ||
-      (p.apellidoPaterno + ' ' + p.apellidoMaterno + ' ' + p.primerNombre).toLowerCase().includes(q)
-  );
-}
-
-export function fullPatientName(p: PatientRecord): string {
-  return (p.apellidoPaterno + ' ' + p.apellidoMaterno + ' ' + p.primerNombre + ' ' + p.segundoNombre).trim();
-}
-
-export const FACILITIES = [
-  { id: 'cs-paraiso', name: 'C.S. El Paraiso', type: 'Centro de Salud', code: '493' },
-  { id: 'sc-sanroque', name: 'Subcentro de Salud San Roque', type: 'Subcentro', code: '493-01' },
-  { id: 'sc-chimbacalle', name: 'Subcentro Chimbacalle', type: 'Subcentro', code: '493-02' },
-  { id: 'sc-laecuatorial', name: 'Subcentro La Ecuatorial', type: 'Subcentro', code: '493-03' },
-] as const;
+export const WORKFLOW_TESTS: unknown[] = [];
+export const PATIENTS: unknown[] = [];
