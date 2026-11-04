@@ -2,7 +2,8 @@
 import React from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { UserRound, Stethoscope, Siren, Building2, AlertCircle } from 'lucide-react';
-import { DOCTORS, PROVINCES, FACILITIES } from '@/lib/labData';
+import { PROVINCES } from '@/lib/labData';
+import type { MyLab } from '@/lib/supabase/api';
 
 export interface PatientFormValues {
   historia: string;
@@ -23,8 +24,12 @@ export interface PatientFormValues {
   facility: string;
 }
 
+export interface FacilityOption { id: string; name: string; type: string; code: string }
+
 interface PatientFormProps {
   form: UseFormReturn<any>;
+  lab: MyLab | null | undefined;
+  facilities: FacilityOption[];
 }
 
 const inputCls =
@@ -40,10 +45,12 @@ function FieldError({ msg }: { msg?: string }) {
   );
 }
 
-export default function PatientForm({ form }: PatientFormProps) {
+export default function PatientForm({ form, lab, facilities }: PatientFormProps) {
   const { register, watch, formState: { errors } } = form;
   const orderType = watch('orderType');
   const priority = watch('priority');
+  // Datos del establecimiento: vacíos hasta que el admin del laboratorio los complete (códigos del MSP).
+  const stripValues = [lab?.institution_name, lab?.unit_name, lab?.uo_code, lab?.location_code].map((v) => v?.trim() || '—');
 
   return (
     <div className="space-y-6">
@@ -55,8 +62,8 @@ export default function PatientForm({ form }: PatientFormProps) {
           ))}
         </div>
         <div className="grid grid-cols-2 divide-x divide-border sm:grid-cols-4">
-          {['MSP Ecuador', 'C.S. El Paraiso', '493', '17D03'].map((v) => (
-            <div key={v} className="px-3 py-2 text-center text-sm font-semibold text-foreground">{v}</div>
+          {stripValues.map((v, i) => (
+            <div key={`strip-${i}`} className={`px-3 py-2 text-center text-sm font-semibold ${v === '—' ? 'text-muted-foreground' : 'text-foreground'}`}>{v}</div>
           ))}
         </div>
       </div>
@@ -193,12 +200,7 @@ export default function PatientForm({ form }: PatientFormProps) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted-foreground">Medico solicitante *</label>
-              <select className={inputCls} {...register('doctor', { required: 'Requerido' })}>
-                <option value="">Seleccione medico</option>
-                {DOCTORS.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
+              <input className={inputCls} placeholder="Nombre del médico" autoComplete="off" {...register('doctor', { required: 'Requerido' })} />
               <FieldError msg={errors.doctor?.message as string} />
             </div>
             <div>
@@ -207,29 +209,31 @@ export default function PatientForm({ form }: PatientFormProps) {
             </div>
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold text-foreground">Establecimiento de origen</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {FACILITIES.map((f) => {
-                const active = watch('facility') === f.name;
-                return (
-                  <label
-                    key={f.id}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-all ${
-                      active ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
-                    }`}
-                  >
-                    <input type="radio" value={f.name} className="sr-only" {...register('facility')} />
-                    <Building2 className={`h-5 w-5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <div className="min-w-0">
-                      <p className={`truncate text-sm font-semibold ${active ? 'text-primary' : 'text-foreground'}`}>{f.name}</p>
-                      <p className="text-xs text-muted-foreground">{f.type} · COD {f.code}</p>
-                    </div>
-                  </label>
-                );
-              })}
+          {facilities.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold text-foreground">Establecimiento de origen</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {facilities.map((f) => {
+                  const active = watch('facility') === f.name;
+                  return (
+                    <label
+                      key={f.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-all ${
+                        active ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
+                      }`}
+                    >
+                      <input type="radio" value={f.name} className="sr-only" {...register('facility')} />
+                      <Building2 className={`h-5 w-5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <div className="min-w-0">
+                        <p className={`truncate text-sm font-semibold ${active ? 'text-primary' : 'text-foreground'}`}>{f.name}</p>
+                        <p className="text-xs text-muted-foreground">{f.type === 'subcentro' ? 'Subcentro' : 'Centro de salud'} · COD {f.code}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
     </div>

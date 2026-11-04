@@ -207,7 +207,7 @@ export default function AuthCard() {
           )}
         </div>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">LabFlow · C.S. El Paraiso · UO 493 · MSP Ecuador</p>
+        <p className="mt-4 text-center text-xs text-muted-foreground">LabFlow · Sistema de gestión de laboratorio clínico</p>
       </div>
     </section>
   );

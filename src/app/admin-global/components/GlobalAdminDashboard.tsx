@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Building2, Users, Activity, AlertTriangle, FlaskConical,
-  Loader2, RefreshCw, Wifi, MapPin, Plus, Power, Copy, KeyRound, ShieldCheck,
+  Loader2, RefreshCw, Wifi, MapPin, Plus, Power, Copy, KeyRound, ShieldCheck, Pencil, Trash2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Modal from '@/components/ui/Modal';
@@ -43,6 +43,15 @@ export default function GlobalAdminDashboard() {
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'warning' } | null>(null);
   const [admins, setAdmins] = useState<AdminRow[]>([]);
   const [toggling, setToggling] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', code: '', city: '', province: '', maxUsers: '50' });
+  const [editError, setEditError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const setField = (k: keyof typeof EMPTY_FORM, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -82,6 +91,64 @@ export default function GlobalAdminDashboard() {
     }
   };
 
+  const openEdit = (lab: { id: string; name: string; code: string; city: string | null }) => {
+    setEditForm({ name: lab.name, code: lab.code, city: lab.city ?? '', province: '', maxUsers: '50' });
+    setEditError('');
+    setEditing(true);
+    // Provincia y límite no vienen en el resumen: se leen del laboratorio.
+    createClient()
+      .from('laboratories' as any)
+      .select('province, max_users')
+      .eq('id', lab.id)
+      .single()
+      .then(({ data: row }: any) => {
+        if (row) setEditForm((f) => ({ ...f, province: row.province ?? '', maxUsers: String(row.max_users ?? 50) }));
+      });
+  };
+
+  const submitEdit = async (labId: string) => {
+    setEditError('');
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/laboratories/${labId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...editForm, maxUsers: Number(editForm.maxUsers) }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setEditError(json.error ?? 'No se pudo guardar.'); return; }
+      setEditing(false);
+      setToast({ msg: 'Laboratorio actualizado', tone: 'success' });
+      await load();
+    } catch {
+      setEditError('Error de conexión. Intente de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitDelete = async (labId: string) => {
+    setDeleteError('');
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(`/api/admin/laboratories/${labId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: deleteConfirm }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setDeleteError(json.error ?? 'No se pudo eliminar.'); return; }
+      setDeleting(false);
+      setSelectedLab(null);
+      setToast({ msg: 'Laboratorio eliminado', tone: 'success' });
+      await load();
+    } catch {
+      setDeleteError('Error de conexión. Intente de nuevo.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
   const copyText = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -98,7 +165,7 @@ export default function GlobalAdminDashboard() {
       await supabase.rpc('presence_heartbeat', { p_path: '/admin-global' });
       const { data: ov, error: err } = await supabase.rpc('traffic_overview');
       if (err) { setError(err.message); setData(null); }
-      else setData(ov as Overview);
+      else { setData(ov as Overview); setUpdatedAt(new Date()); }
     } catch {
       setError('Ejecute 04_multitenant.sql en Supabase.');
     } finally {
@@ -196,7 +263,12 @@ export default function GlobalAdminDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Vista general del sistema</h2>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">
+          {updatedAt && (
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              Actualizado {updatedAt.toLocaleTimeString('es-EC')}
+            </span>
+          )}
+          <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10">
             <RefreshCw className="h-3.5 w-3.5" /> Actualizar
           </button>
           <button type="button" onClick={openCreate} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95">
@@ -289,16 +361,32 @@ export default function GlobalAdminDashboard() {
                   </ul>
                 )}
               </div>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEdit(selected)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition-all hover:bg-muted"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Editar
+                </button>
               <button
-                type="button"
-                disabled={toggling}
-                onClick={() => toggleLab(selected.id, selected.active)}
-                className={`mt-1 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 ${
-                  selected.active ? 'border-destructive/40 text-destructive hover:bg-destructive/10' : 'border-border hover:bg-muted'
-                }`}
-              >
-                <Power className="h-3.5 w-3.5" /> {selected.active ? 'Desactivar laboratorio' : 'Activar laboratorio'}
-              </button>
+                  type="button"
+                  disabled={toggling}
+                  onClick={() => toggleLab(selected.id, selected.active)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 ${
+                    selected.active ? 'border-destructive/40 text-destructive hover:bg-destructive/10' : 'border-border hover:bg-muted'
+                  }`}
+                >
+                  <Power className="h-3.5 w-3.5" /> {selected.active ? 'Desactivar laboratorio' : 'Activar laboratorio'}
+                </button>
+                  <button
+                  type="button"
+                  onClick={() => { setDeleteConfirm(''); setDeleteError(''); setDeleting(true); }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive transition-all hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                </button>
+              </div>
             </div>
           ) : (
             <p className="p-6 text-center text-sm text-muted-foreground">Toque una tarjeta de laboratorio</p>
@@ -416,6 +504,85 @@ export default function GlobalAdminDashboard() {
                 </div>
               </label>
             </div>
+          </div>
+        )}
+      </Modal>
+      <Modal
+        open={editing && !!selected}
+        title="Editar laboratorio"
+        onClose={() => setEditing(false)}
+        footer={
+          <>
+            <button type="button" onClick={() => setEditing(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted">Cancelar</button>
+            <button
+              type="button"
+              disabled={saving || !selected}
+              onClick={() => selected && submitEdit(selected.id)}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar cambios
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {editError && <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{editError}</p>}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block sm:col-span-2">
+              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Nombre</span>
+              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Código</span>
+              <input value={editForm.code} onChange={(e) => setEditForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} className="w-full rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Máx. usuarios</span>
+              <input type="number" min={1} max={1000} value={editForm.maxUsers} onChange={(e) => setEditForm((f) => ({ ...f, maxUsers: e.target.value }))} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Ciudad</span>
+              <input value={editForm.city} onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Provincia</span>
+              <input value={editForm.province} onChange={(e) => setEditForm((f) => ({ ...f, province: e.target.value }))} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+            </label>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleting && !!selected}
+        title="Eliminar laboratorio"
+        onClose={() => setDeleting(false)}
+        footer={
+          <>
+            <button type="button" onClick={() => setDeleting(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted">Cancelar</button>
+            <button
+              type="button"
+              disabled={deleteBusy || !selected || deleteConfirm.trim().toUpperCase() !== selected.code}
+              onClick={() => selected && submitDelete(selected.id)}
+              className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {deleteBusy && <Loader2 className="h-4 w-4 animate-spin" />} Eliminar definitivamente
+            </button>
+          </>
+        }
+      >
+        {selected && (
+          <div className="space-y-3 text-sm">
+            {deleteError && <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive">{deleteError}</p>}
+            <p>
+              Se eliminará <strong>{selected.name}</strong> junto con <strong>todas las cuentas de su personal</strong>. Esta acción no se puede deshacer.
+            </p>
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs font-medium">
+              Un laboratorio que ya registró pacientes o exámenes no puede eliminarse: use «Desactivar» para bloquear su acceso y conservar el historial.
+            </p>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Escriba el código <span className="font-mono">{selected.code}</span> para confirmar</span>
+              <input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} autoComplete="off" className="w-full rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+            </label>
           </div>
         )}
       </Modal>

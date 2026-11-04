@@ -5,6 +5,7 @@ import {
   Wifi, Shield, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import LabProfilePanel from './LabProfilePanel';
 
 type StaffRow = {
   id: string; full_name: string; email: string; role: string; active: boolean;
@@ -39,6 +40,7 @@ export default function LabAdminDashboard() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('tecnologo');
   const [assigning, setAssigning] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -47,7 +49,7 @@ export default function LabAdminDashboard() {
       await supabase.rpc('presence_heartbeat', { p_path: '/admin-lab' });
       const { data: ov, error: err } = await supabase.rpc('traffic_overview');
       if (err) { setError(err.message); setData(null); }
-      else setData(ov as LabOverview);
+      else { setData(ov as LabOverview); setUpdatedAt(new Date()); }
     } catch {
       setError('Ejecute 04_multitenant.sql. Solo jefa/superadmin.');
     } finally {
@@ -100,6 +102,15 @@ export default function LabAdminDashboard() {
     <div className="space-y-4 sm:space-y-6">
       {error && <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       {toast && <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">{toast}</p>}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {updatedAt ? `Actualizado ${updatedAt.toLocaleTimeString('es-EC')} · ` : ''}se refresca solo cada 15 s
+        </p>
+        <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10">
+          <RefreshCw className="h-3.5 w-3.5" /> Actualizar
+        </button>
+      </div>
 
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <article className="rounded-xl border border-border bg-primary p-4 text-primary-foreground sm:p-5">
@@ -221,6 +232,8 @@ export default function LabAdminDashboard() {
           </form>
         </section>
       </div>
+
+      <LabProfilePanel />
     </div>
   );
 }

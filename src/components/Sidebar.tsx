@@ -9,6 +9,7 @@ import {
 import AppLogo from '@/components/ui/AppLogo';
 import Tooltip from '@/components/ui/Tooltip';
 import { getMyRole, signOut } from '@/lib/supabase/api';
+import { useMyLaboratory } from '@/lib/useMyLaboratory';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -47,6 +48,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const isCollapsed = collapsed && !mobileOpen;
   const [role, setRole] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const lab = useMyLaboratory();
+  const isLabUser = role !== 'superadmin' && !!lab;
+  const brandName = isLabUser ? lab!.name : 'LabFlow';
+  const brandSub = isLabUser
+    ? [lab!.code, lab!.city].filter(Boolean).join(' · ')
+    : role === 'superadmin' ? 'Administración global' : 'Laboratorio clínico';
+  const initials = brandName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
 
   useEffect(() => {
     let alive = true;
@@ -93,11 +101,20 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           ${isCollapsed ? 'w-[72px]' : 'w-64'}`}
       >
         <div className="flex h-14 items-center gap-2 border-b border-border px-3 sm:h-16">
-          <AppLogo size={isCollapsed ? 32 : 36} />
+          {isLabUser ? (
+            <div
+              aria-hidden="true"
+              className={`flex shrink-0 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground ${isCollapsed ? 'h-8 w-8 text-xs' : 'h-9 w-9 text-sm'}`}
+            >
+              {initials}
+            </div>
+          ) : (
+            <AppLogo size={isCollapsed ? 32 : 36} />
+          )}
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-foreground">LabFlow</p>
-              <p className="truncate text-[10px] text-muted-foreground">MSP Ecuador</p>
+              <p className="truncate text-sm font-bold text-foreground" title={brandName}>{brandName}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{brandSub}</p>
             </div>
           )}
           <button

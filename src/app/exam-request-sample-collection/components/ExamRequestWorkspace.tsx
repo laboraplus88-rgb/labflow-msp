@@ -11,7 +11,9 @@ import {
   createPatient,
   createExamRequest,
   searchPatients,
+  setRequestingDoctor,
 } from '@/lib/supabase/api';
+import { useMyLaboratory } from '@/lib/useMyLaboratory';
 
 export interface CollectedLabel {
   tube: TubeKey;
@@ -37,7 +39,7 @@ export default function ExamRequestWorkspace() {
       orderType: 'Consulta externa',
       priority: 'Rutina',
       diagnosis: '',
-      facility: 'C.S. El Paraiso',
+      facility: '',
     },
   });
 
@@ -45,11 +47,12 @@ export default function ExamRequestWorkspace() {
   const [labels, setLabels] = useState<CollectedLabel[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
-  const [facilities, setFacilities] = useState<{ id: string; name: string }[]>([]);
+  const lab = useMyLaboratory();
+  const [facilities, setFacilities] = useState<{ id: string; name: string; type: string; code: string }[]>([]);
 
   useEffect(() => {
     getFacilities().then(({ data }) => {
-      if (data?.length) setFacilities(data.map((f: any) => ({ id: f.id, name: f.name })));
+      setFacilities((data ?? []).map((f: any) => ({ id: f.id, name: f.name, type: f.type, code: f.code })));
     });
   }, []);
 
@@ -136,6 +139,10 @@ export default function ExamRequestWorkspace() {
         return;
       }
 
+      if (vals.doctor?.trim()) {
+        await setRequestingDoctor(data.request.id, vals.doctor.trim());
+      }
+
       setLabels(
         (data.samples ?? []).map((s: any) => ({
           tube: s.tube_type as TubeKey,
@@ -159,7 +166,7 @@ export default function ExamRequestWorkspace() {
       className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[1fr_340px] 2xl:grid-cols-[1fr_400px]"
     >
       <div className="min-w-0 space-y-4 sm:space-y-6">
-        <PatientForm form={form} />
+        <PatientForm form={form} lab={lab} facilities={facilities} />
         <ExamCatalog selected={selected} onToggle={toggle} />
       </div>
       <OrderSummary

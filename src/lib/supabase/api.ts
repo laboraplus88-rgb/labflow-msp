@@ -231,7 +231,7 @@ export async function getPatientOrders(patientId: string) {
   const supabase = createClient();
   return supabase
     .from('exam_requests')
-    .select('*, tests(*), facilities(name), profiles:doctor_id(full_name)')
+    .select('*, tests(*), facilities(name), profiles:profiles!exam_requests_doctor_profile_fkey(full_name)')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false });
 }
@@ -274,4 +274,51 @@ export async function dashboardStats() {
     pending: pending.count ?? 0,
     urgentOpen: overdue.count ?? 0,
   };
+}
+
+// ===== Laboratorio propio (multi-tenant) =====
+export type MyLab = {
+  id: string;
+  name: string;
+  code: string;
+  city: string | null;
+  province: string | null;
+  active: boolean;
+  institution_name: string | null;
+  unit_name: string | null;
+  uo_code: string | null;
+  location_code: string | null;
+};
+
+export async function getMyLaboratory(): Promise<MyLab | null> {
+  const supabase = createClient() as any;
+  const user = await getSessionUser();
+  if (!user) return null;
+  const { data: prof } = await supabase.from('profiles').select('laboratory_id').eq('id', user.id).single();
+  if (!prof?.laboratory_id) return null;
+  const { data } = await supabase.from('laboratories').select('*').eq('id', prof.laboratory_id).single();
+  return (data as MyLab) ?? null;
+}
+
+export async function updateMyLaboratoryProfile(
+  labId: string,
+  v: { institution_name: string | null; unit_name: string | null; uo_code: string | null; location_code: string | null; city: string | null; province: string | null }
+) {
+  const supabase = createClient() as any;
+  return supabase.from('laboratories').update(v).eq('id', labId);
+}
+
+export async function addFacility(v: { name: string; type: 'centro' | 'subcentro'; code: string }) {
+  const supabase = createClient() as any;
+  return supabase.from('facilities').insert({ name: v.name, type: v.type, code: v.code, active: true }).select().single();
+}
+
+export async function deactivateFacility(id: string) {
+  const supabase = createClient() as any;
+  return supabase.from('facilities').update({ active: false }).eq('id', id);
+}
+
+export async function setRequestingDoctor(requestId: string, name: string) {
+  const supabase = createClient() as any;
+  return supabase.from('exam_requests').update({ requesting_doctor: name }).eq('id', requestId);
 }
