@@ -1,4 +1,5 @@
 // LabFlow shared catalog and types (UTF-8)
+// Colores de tapa segun estandar CLSI / practica MSP Ecuador
 
 export type Priority = 'Urgente' | 'Rutina' | 'Control';
 export type OrderType = 'Emergencia' | 'Consulta externa' | 'Ambulatorio';
@@ -13,15 +14,59 @@ export type Stage =
 
 export type TubeKey = 'yellow' | 'purple' | 'blue' | 'green' | 'gray' | 'urine' | 'stool' | 'other';
 
-export const TUBES: Record<TubeKey, { label: string; note: string; swatch: string }> = {
-  yellow: { label: 'Tubo amarillo (suero/gel)', note: 'Suero', swatch: 'bg-yellow-400' },
-  purple: { label: 'Tubo lila (EDTA)', note: 'Sangre total', swatch: 'bg-purple-500' },
-  blue: { label: 'Tubo azul (citrato)', note: 'Plasma citrato', swatch: 'bg-blue-500' },
-  green: { label: 'Tubo verde (heparina)', note: 'Plasma heparina', swatch: 'bg-green-500' },
-  gray: { label: 'Tubo gris (fluoruro)', note: 'Glucosa', swatch: 'bg-gray-400' },
-  urine: { label: 'Frasco de orina', note: 'Orina', swatch: 'bg-amber-200' },
-  stool: { label: 'Frasco de heces', note: 'Heces', swatch: 'bg-amber-700' },
-  other: { label: 'Recipiente especial', note: 'Especial', swatch: 'bg-slate-300' },
+/** Colores estandar de tubos de extraccion (hex imprimibles) */
+export const TUBES: Record<
+  TubeKey,
+  { label: string; note: string; swatch: string; color: string }
+> = {
+  purple: {
+    label: 'Tubo lila (EDTA)',
+    note: 'Sangre total',
+    swatch: 'bg-[#7c3aed]',
+    color: '#7c3aed',
+  },
+  blue: {
+    label: 'Tubo celeste (citrato)',
+    note: 'Plasma citratado',
+    swatch: 'bg-[#38bdf8]',
+    color: '#38bdf8',
+  },
+  yellow: {
+    label: 'Tubo amarillo (suero/gel)',
+    note: 'Suero',
+    swatch: 'bg-[#facc15]',
+    color: '#facc15',
+  },
+  green: {
+    label: 'Tubo verde (heparina)',
+    note: 'Plasma heparina',
+    swatch: 'bg-[#22c55e]',
+    color: '#22c55e',
+  },
+  gray: {
+    label: 'Tubo gris (fluoruro)',
+    note: 'Glucosa',
+    swatch: 'bg-[#9ca3af]',
+    color: '#9ca3af',
+  },
+  urine: {
+    label: 'Frasco de orina',
+    note: 'Orina',
+    swatch: 'bg-[#fde68a]',
+    color: '#fde68a',
+  },
+  stool: {
+    label: 'Frasco de heces',
+    note: 'Heces',
+    swatch: 'bg-[#a16207]',
+    color: '#a16207',
+  },
+  other: {
+    label: 'Recipiente especial',
+    note: 'Especial',
+    swatch: 'bg-[#cbd5e1]',
+    color: '#cbd5e1',
+  },
 };
 
 export interface CatalogExam {
@@ -44,7 +89,6 @@ export const CATEGORIES = [
 ] as const;
 
 export const CATALOG: CatalogExam[] = [
-  // Hematologia
   { id: 'h-01', name: 'Biometria hematica', category: 'Hematologia', range: 'Ver informe', unit: '-', tube: 'purple' },
   { id: 'h-02', name: 'Hemoglobina', category: 'Hematologia', range: '12.0-16.0', unit: 'g/dL', tube: 'purple' },
   { id: 'h-03', name: 'Hematocrito', category: 'Hematologia', range: '36-46', unit: '%', tube: 'purple' },
@@ -64,18 +108,15 @@ export const CATALOG: CatalogExam[] = [
   { id: 'h-17', name: 'Coombs indirecto', category: 'Hematologia', range: 'Negativo', unit: '-', tube: 'yellow' },
   { id: 'h-18', name: 'Velocidad de sedimentacion (VSG)', category: 'Hematologia', range: '0-20', unit: 'mm/h', tube: 'purple' },
   { id: 'h-19', name: 'Frotis de sangre periferica', category: 'Hematologia', range: 'Ver informe', unit: '-', tube: 'purple' },
-  // Uroanalisis
   { id: 'u-01', name: 'Examen general de orina', category: 'Uroanalisis', range: 'Ver informe', unit: '-', tube: 'urine' },
   { id: 'u-02', name: 'Microscopia de orina', category: 'Uroanalisis', range: 'Ver informe', unit: '-', tube: 'urine' },
   { id: 'u-03', name: 'Proteinuria 24 h', category: 'Uroanalisis', range: '< 150', unit: 'mg/24h', tube: 'urine' },
   { id: 'u-04', name: 'Depuracion de creatinina', category: 'Uroanalisis', range: '90-120', unit: 'mL/min', tube: 'urine' },
   { id: 'u-05', name: 'Gravidez en orina (hCG)', category: 'Uroanalisis', range: 'Negativo', unit: '-', tube: 'urine' },
-  // Coprologico
   { id: 'c-01', name: 'Coproparasitario', category: 'Coprologico', range: 'Negativo', unit: '-', tube: 'stool' },
   { id: 'c-02', name: 'Coprologico funcional', category: 'Coprologico', range: 'Ver informe', unit: '-', tube: 'stool' },
   { id: 'c-03', name: 'Sangre oculta en heces', category: 'Coprologico', range: 'Negativo', unit: '-', tube: 'stool' },
   { id: 'c-04', name: 'Rotavirus / Adenovirus', category: 'Coprologico', range: 'Negativo', unit: '-', tube: 'stool' },
-  // Quimica sanguinea
   { id: 'q-01', name: 'Glucosa en ayunas', category: 'Quimica sanguinea', range: '70-100', unit: 'mg/dL', tube: 'gray' },
   { id: 'q-02', name: 'Glucosa postprandial', category: 'Quimica sanguinea', range: '< 140', unit: 'mg/dL', tube: 'gray' },
   { id: 'q-03', name: 'Urea', category: 'Quimica sanguinea', range: '15-45', unit: 'mg/dL', tube: 'yellow' },
@@ -101,7 +142,6 @@ export const CATALOG: CatalogExam[] = [
   { id: 'q-23', name: 'Sodio', category: 'Quimica sanguinea', range: '135-145', unit: 'mEq/L', tube: 'green' },
   { id: 'q-24', name: 'Potasio', category: 'Quimica sanguinea', range: '3.5-5.1', unit: 'mEq/L', tube: 'green' },
   { id: 'q-25', name: 'Cloro', category: 'Quimica sanguinea', range: '98-107', unit: 'mEq/L', tube: 'green' },
-  // Serologia
   { id: 's-01', name: 'VDRL', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
   { id: 's-02', name: 'HIV 1/2', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
   { id: 's-03', name: 'HBsAg', category: 'Serologia', range: 'No reactivo', unit: '-', tube: 'yellow' },
@@ -111,13 +151,11 @@ export const CATALOG: CatalogExam[] = [
   { id: 's-07', name: 'PCR cuantitativa', category: 'Serologia', range: '< 5', unit: 'mg/L', tube: 'yellow' },
   { id: 's-08', name: 'Factor reumatoide', category: 'Serologia', range: '< 14', unit: 'UI/mL', tube: 'yellow' },
   { id: 's-09', name: 'Toxoplasma IgG / IgM', category: 'Serologia', range: 'Ver informe', unit: '-', tube: 'yellow' },
-  // Bacteriologia
   { id: 'b-01', name: 'Cultivo de orina', category: 'Bacteriologia', range: 'Sin crecimiento', unit: '-', tube: 'urine' },
   { id: 'b-02', name: 'Cultivo de heces', category: 'Bacteriologia', range: 'Sin patogenos', unit: '-', tube: 'stool' },
   { id: 'b-03', name: 'Gram', category: 'Bacteriologia', range: 'Ver informe', unit: '-', tube: 'other' },
   { id: 'b-04', name: 'Cultivo de secrecion', category: 'Bacteriologia', range: 'Ver informe', unit: '-', tube: 'other' },
   { id: 'b-05', name: 'Hemocultivo', category: 'Bacteriologia', range: 'Sin crecimiento', unit: '-', tube: 'other' },
-  // Otros
   { id: 'o-01', name: 'TSH', category: 'Otros', range: '0.4-4.0', unit: 'mUI/L', tube: 'yellow' },
   { id: 'o-02', name: 'T4 libre', category: 'Otros', range: '0.8-1.8', unit: 'ng/dL', tube: 'yellow' },
   { id: 'o-03', name: 'T3 total', category: 'Otros', range: '80-200', unit: 'ng/dL', tube: 'yellow' },
