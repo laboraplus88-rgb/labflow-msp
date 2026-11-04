@@ -12,6 +12,7 @@ import {
   createExamRequest,
   searchPatients,
   setRequestingDoctor,
+  getProfile,
 } from '@/lib/supabase/api';
 import { useMyLaboratory } from '@/lib/useMyLaboratory';
 
@@ -54,6 +55,34 @@ export default function ExamRequestWorkspace() {
     getFacilities().then(({ data }) => {
       setFacilities((data ?? []).map((f: any) => ({ id: f.id, name: f.name, type: f.type, code: f.code })));
     });
+  }, []);
+
+  // Prefill desde el panel del médico (?cedula=...) y médico solicitante por defecto.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const profile: any = await getProfile();
+      if (alive && profile?.role === 'medico' && profile.full_name) form.setValue('doctor', profile.full_name);
+      const ced = new URLSearchParams(window.location.search).get('cedula')?.trim();
+      if (!ced || !alive) return;
+      const { data } = await searchPatients(ced);
+      const p: any = (data ?? []).find((x: any) => x.cedula === ced);
+      form.setValue('cedula', ced);
+      if (p && alive) {
+        form.setValue('historia', p.historia ?? '');
+        form.setValue('apellidoPaterno', p.apellido_paterno ?? '');
+        form.setValue('apellidoMaterno', p.apellido_materno ?? '');
+        form.setValue('primerNombre', p.primer_nombre ?? '');
+        form.setValue('segundoNombre', p.segundo_nombre ?? '');
+        form.setValue('edad', p.edad != null ? String(p.edad) : '');
+        form.setValue('sexo', p.sexo ?? '');
+        if (p.provincia) form.setValue('provincia', p.provincia);
+        form.setValue('canton', p.canton ?? '');
+        form.setValue('parroquia', p.parroquia ?? '');
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggle = (id: string) => {

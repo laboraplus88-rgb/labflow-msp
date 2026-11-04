@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ClipboardList, FlaskConical, BarChart3, LogOut, ChevronsLeft, ChevronsRight,
-  X, UserSearch, Building2, Users,
+  X, UserSearch, Building2, Users, LayoutDashboard,
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Tooltip from '@/components/ui/Tooltip';
@@ -23,6 +23,18 @@ const ITEM_ROLES: Record<string, string[]> = {
   '/admin-global': ['superadmin'],
   '/admin-lab': ['jefa'],
 };
+
+// Menú propio del médico solicitante: sin procesamiento ni estadísticas del laboratorio.
+const DOCTOR_NAV = [
+  {
+    group: 'Médico',
+    items: [
+      { href: '/doctor', label: 'Mi panel', icon: LayoutDashboard },
+      { href: '/exam-request-sample-collection', label: 'Nueva solicitud', icon: ClipboardList },
+      { href: '/patient-history', label: 'Mis pacientes', icon: UserSearch },
+    ],
+  },
+];
 
 const NAV = [
   {
@@ -75,7 +87,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   };
 
   // El superadmin solo gestiona laboratorios: no ve módulos clínicos.
-  const visibleNav = NAV.map((g) => ({
+  const visibleNav = (role === 'medico' ? DOCTOR_NAV : NAV).map((g) => ({
     ...g,
     items: g.items.filter((item) => {
       if (role === 'superadmin') return item.href === '/admin-global';

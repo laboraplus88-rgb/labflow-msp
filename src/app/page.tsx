@@ -17,6 +17,7 @@ export default async function StatisticsDashboardPage() {
   if (user) {
     const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
     if (me?.role === 'superadmin') redirect('/admin-global');
+    if (me?.role === 'medico') redirect('/doctor');
   }
 
   return (

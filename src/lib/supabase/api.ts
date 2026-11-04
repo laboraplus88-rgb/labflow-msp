@@ -322,3 +322,27 @@ export async function setRequestingDoctor(requestId: string, name: string) {
   const supabase = createClient() as any;
   return supabase.from('exam_requests').update({ requesting_doctor: name }).eq('id', requestId);
 }
+
+// ===== Panel del médico =====
+export type DoctorTest = {
+  id: string; examName: string; category: string; stage: string; priority: string;
+  ready: boolean; result: string | null; unit: string | null; range: string | null;
+  flag: string | null; validatedAt: string | null;
+};
+export type DoctorOrder = {
+  id: string; code: string; createdAt: string; orderType: string; priority: string; diagnosis: string | null;
+  patient: { id: string; name: string; cedula: string; age: number | null; sex: string | null };
+  examsTotal: number; examsReady: number; lastValidatedAt: string | null; tests: DoctorTest[];
+};
+export type DoctorPanelData = {
+  from: string; to: string;
+  kpis: { issued: number; delivered: number; open: number; urgentOpen: number; avgTatMin: number | null };
+  orders: DoctorOrder[];
+};
+
+export async function getDoctorPanel(from: Date, to: Date): Promise<{ data: DoctorPanelData | null; error: string | null }> {
+  const supabase = createClient() as any;
+  const { data, error } = await supabase.rpc('doctor_panel', { p_from: from.toISOString(), p_to: to.toISOString() });
+  if (error) return { data: null, error: error.message };
+  return { data: data as DoctorPanelData, error: null };
+}
