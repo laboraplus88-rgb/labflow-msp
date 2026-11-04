@@ -116,7 +116,14 @@ export default function OrderSummary({
                         key={g.tube}
                         className="flex items-start gap-3 rounded-lg border border-border p-2.5"
                       >
-                        <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border border-border ${t.swatch}`} />
+                        <span
+                          className="mt-0.5 h-5 w-5 shrink-0 rounded-full border border-black/10"
+                          style={{
+                            backgroundColor: t.color,
+                            WebkitPrintColorAdjust: 'exact',
+                            printColorAdjust: 'exact',
+                          }}
+                        />
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground">{t.label}</p>
                           <p className="truncate text-xs text-muted-foreground">{g.exams.join(' · ')}</p>
@@ -141,8 +148,8 @@ export default function OrderSummary({
       </div>
 
       {labels.length > 0 && (
-        <div className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
+        <div id="sample-labels-print" className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm print:border-0 print:p-0 print:shadow-none">
+          <div className="mb-3 flex items-center justify-between print:hidden">
             <p className="text-sm font-bold text-foreground">Etiquetas de muestra</p>
             <button
               type="button"
@@ -152,15 +159,26 @@ export default function OrderSummary({
               <Printer className="h-3.5 w-3.5" /> Imprimir
             </button>
           </div>
-          <ul className="space-y-2">
+          <ul className="space-y-2 print:space-y-3">
             {labels.map((l) => {
               const t = TUBES[l.tube];
               return (
                 <li
                   key={l.code}
-                  className="flex items-stretch overflow-hidden rounded-md border border-input bg-white shadow-sm"
+                  className="flex items-stretch overflow-hidden rounded-md border border-input bg-white shadow-sm print:break-inside-avoid"
+                  style={{
+                    WebkitPrintColorAdjust: 'exact',
+                    printColorAdjust: 'exact',
+                  }}
                 >
-                  <span className={`w-2.5 shrink-0 ${t.swatch}`} />
+                  <span
+                    className="w-2.5 shrink-0"
+                    style={{
+                      backgroundColor: t.color,
+                      WebkitPrintColorAdjust: 'exact',
+                      printColorAdjust: 'exact',
+                    }}
+                  />
                   <div className="min-w-0 flex-1 px-3 py-2">
                     <p className="truncate text-xs font-bold tracking-tight text-foreground">{shortName}</p>
                     <p className="font-mono text-[10px] text-muted-foreground tabular">
@@ -190,6 +208,28 @@ export default function OrderSummary({
           </ul>
         </div>
       )}
+
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #sample-labels-print,
+          #sample-labels-print * {
+            visibility: visible;
+          }
+          #sample-labels-print {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}</style>
     </aside>
   );
 }
