@@ -177,7 +177,7 @@ export default function PatientHistoryWorkspace() {
                         <p className="truncate text-sm font-semibold text-foreground">{fullName(p)}</p>
                         <p className="font-mono text-[11px] text-muted-foreground">CI {p.cedula}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {p.edad != null ? `${p.edad} anos` : '\u2014'} \u00b7 {p.sexo === 'F' ? 'Mujer' : p.sexo === 'M' ? 'Hombre' : '\u2014'}
+                          {p.edad != null ? `${p.edad} anos` : '—'} · {p.sexo === 'F' ? 'Mujer' : p.sexo === 'M' ? 'Hombre' : '—'}
                         </p>
                       </div>
                     </button>
@@ -208,12 +208,12 @@ export default function PatientHistoryWorkspace() {
                     <h2 className="text-xl font-bold text-foreground">{fullName(selected)}</h2>
                     <p className="mt-0.5 font-mono text-sm text-muted-foreground">
                       CI {selected.cedula}
-                      {selected.historia ? ` \u00b7 HC ${selected.historia}` : ''}
+                      {selected.historia ? ` · HC ${selected.historia}` : ''}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {selected.edad != null ? `${selected.edad} anos` : '\u2014'}{' '}\u00b7{' '}
-                      {selected.sexo === 'F' ? 'Mujer' : selected.sexo === 'M' ? 'Hombre' : '\u2014'}
-                      {selected.parroquia ? ` \u00b7 ${selected.parroquia}` : ''}
+                      {selected.edad != null ? `${selected.edad} anos` : '—'}{' '}·{' '}
+                      {selected.sexo === 'F' ? 'Mujer' : selected.sexo === 'M' ? 'Hombre' : '—'}
+                      {selected.parroquia ? ` · ${selected.parroquia}` : ''}
                       {selected.canton ? `, ${selected.canton}` : ''}
                     </p>
                   </div>
@@ -269,7 +269,7 @@ export default function PatientHistoryWorkspace() {
                           </div>
                           <p className="mt-0.5 text-sm text-muted-foreground">
                             <Stethoscope className="mr-1 inline h-3.5 w-3.5" />
-                            {order.facilities?.name ?? '\u2014'} \u00b7 {date.toLocaleString('es-EC')}
+                            {order.facilities?.name ?? '—'} · {date.toLocaleString('es-EC')}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -302,12 +302,12 @@ export default function PatientHistoryWorkspace() {
                                         <p className="text-[11px] text-muted-foreground">{r.category}</p>
                                       </td>
                                       <td className="py-2.5 pr-3">
-                                        <span className="text-base font-bold text-foreground">{r.result ?? '\u2014'}</span>
+                                        <span className="text-base font-bold text-foreground">{r.result ?? '—'}</span>
                                         {r.result_unit && (
                                           <span className="ml-1 text-xs text-muted-foreground">{r.result_unit}</span>
                                         )}
                                       </td>
-                                      <td className="py-2.5 pr-3 text-muted-foreground">{r.result_range ?? '\u2014'}</td>
+                                      <td className="py-2.5 pr-3 text-muted-foreground">{r.result_range ?? '—'}</td>
                                       <td className="py-2.5 pr-3">
                                         {r.result_flag ? (
                                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${FLAG_STYLE[r.result_flag] ?? ''}`}>
@@ -320,7 +320,7 @@ export default function PatientHistoryWorkspace() {
                                         )}
                                       </td>
                                       <td className="py-2.5 text-xs text-muted-foreground">
-                                        {r.validated_at ? new Date(r.validated_at).toLocaleString('es-EC') : '\u2014'}
+                                        {r.validated_at ? new Date(r.validated_at).toLocaleString('es-EC') : '—'}
                                       </td>
                                     </tr>
                                   ))}

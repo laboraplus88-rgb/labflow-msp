@@ -2,9 +2,26 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Building2, Users, Activity, AlertTriangle, FlaskConical,
-  Loader2, RefreshCw, Wifi, MapPin,
+  Loader2, RefreshCw, Wifi, MapPin, Plus, Power, Copy, KeyRound, ShieldCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import Modal from '@/components/ui/Modal';
+import Toast from '@/components/ui/Toast';
+
+type AdminRow = { id: string; full_name: string; email: string | null; active: boolean };
+type CreatedInfo = { labName: string; code: string; email: string; password: string };
+
+const EMPTY_FORM = {
+  name: '', code: '', city: '', province: '', maxUsers: '50',
+  adminName: '', adminEmail: '', adminPassword: '',
+};
+
+function genPassword(len = 14) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!#$%*';
+  const buf = new Uint32Array(len);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (n) => chars[n % chars.length]).join('');
+}
 
 type LabRow = {
   id: string; name: string; code: string; city: string | null; active: boolean;
@@ -18,6 +35,61 @@ export default function GlobalAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedLab, setSelectedLab] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
+  const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'warning' } | null>(null);
+  const [admins, setAdmins] = useState<AdminRow[]>([]);
+  const [toggling, setToggling] = useState(false);
+
+  const setField = (k: keyof typeof EMPTY_FORM, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const openCreate = () => {
+    setForm({ ...EMPTY_FORM, adminPassword: genPassword() });
+    setFormError('');
+    setCreated(null);
+    setShowCreate(true);
+  };
+
+  const submitCreate = async () => {
+    setFormError('');
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/laboratories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, maxUsers: Number(form.maxUsers) }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFormError(json.error ?? 'No se pudo crear el laboratorio.');
+        return;
+      }
+      setCreated({
+        labName: json.laboratory.name,
+        code: json.laboratory.code,
+        email: json.admin.email,
+        password: form.adminPassword,
+      });
+      setToast({ msg: 'Laboratorio creado', tone: 'success' });
+      await load();
+    } catch {
+      setFormError('Error de conexión. Intente de nuevo.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast({ msg: 'Copiado', tone: 'success' });
+    } catch {
+      setToast({ msg: 'No se pudo copiar', tone: 'warning' });
+    }
+  };
 
   const load = useCallback(async () => {
     setError('');
@@ -39,6 +111,35 @@ export default function GlobalAdminDashboard() {
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, [load]);
+
+  useEffect(() => {
+    if (!selectedLab) { setAdmins([]); return; }
+    let alive = true;
+    (async () => {
+      const supabase = createClient();
+      const { data: rows } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, active')
+        .eq('laboratory_id', selectedLab)
+        .eq('role', 'jefa')
+        .order('full_name');
+      if (alive) setAdmins((rows ?? []) as AdminRow[]);
+    })();
+    return () => { alive = false; };
+  }, [selectedLab, data]);
+
+  const toggleLab = async (labId: string, active: boolean) => {
+    setToggling(true);
+    const supabase = createClient();
+    const { error: err } = await supabase.from('laboratories').update({ active: !active }).eq('id', labId);
+    setToggling(false);
+    if (err) {
+      setToast({ msg: 'No se pudo cambiar el estado', tone: 'warning' });
+      return;
+    }
+    setToast({ msg: active ? 'Laboratorio desactivado' : 'Laboratorio activado', tone: 'success' });
+    await load();
+  };
 
   if (loading) {
     return (
@@ -94,9 +195,14 @@ export default function GlobalAdminDashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Vista general del sistema</h2>
-        <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">
-          <RefreshCw className="h-3.5 w-3.5" /> Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">
+            <RefreshCw className="h-3.5 w-3.5" /> Actualizar
+          </button>
+          <button type="button" onClick={openCreate} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95">
+            <Plus className="h-3.5 w-3.5" /> Nuevo laboratorio
+          </button>
+        </div>
       </div>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -116,10 +222,13 @@ export default function GlobalAdminDashboard() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-foreground">{lab.name}</p>
+                  <p className="truncate font-semibold text-foreground">
+                    {lab.name}
+                    {!lab.active && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Inactivo</span>}
+                  </p>
                   <p className="font-mono text-[11px] text-muted-foreground">{lab.code}</p>
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" /> {lab.city ?? '\u2014'}
+                    <MapPin className="h-3 w-3" /> {lab.city ?? '—'}
                   </p>
                 </div>
               </div>
@@ -158,6 +267,38 @@ export default function GlobalAdminDashboard() {
               {selected.pending_tests > 20 && (
                 <p className="rounded-lg bg-destructive/10 px-3 py-2 text-destructive">Posible cuello de botella</p>
               )}
+              <div className="border-t border-border pt-3">
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Administrador del laboratorio
+                </p>
+                {admins.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sin administrador asignado</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {admins.map((a) => (
+                      <li key={a.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold">{a.full_name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{a.email}</span>
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase ${a.active ? 'text-success' : 'text-muted-foreground'}`}>
+                          {a.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <button
+                type="button"
+                disabled={toggling}
+                onClick={() => toggleLab(selected.id, selected.active)}
+                className={`mt-1 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 ${
+                  selected.active ? 'border-destructive/40 text-destructive hover:bg-destructive/10' : 'border-border hover:bg-muted'
+                }`}
+              >
+                <Power className="h-3.5 w-3.5" /> {selected.active ? 'Desactivar laboratorio' : 'Activar laboratorio'}
+              </button>
             </div>
           ) : (
             <p className="p-6 text-center text-sm text-muted-foreground">Toque una tarjeta de laboratorio</p>
@@ -184,6 +325,101 @@ export default function GlobalAdminDashboard() {
           </ul>
         </section>
       </div>
+      <Modal
+        open={showCreate}
+        title={created ? 'Laboratorio creado' : 'Nuevo laboratorio'}
+        onClose={() => setShowCreate(false)}
+        footer={
+          created ? (
+            <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
+              Listo
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={submitCreate}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
+              >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Crear laboratorio
+              </button>
+            </>
+          )
+        }
+      >
+        {created ? (
+          <div className="space-y-3 text-sm">
+            <p>
+              <strong>{created.labName}</strong> ({created.code}) ya está activo. Entregue estas credenciales a su administrador:
+            </p>
+            <div className="space-y-2 rounded-lg border border-border bg-muted/60 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-mono text-xs">{created.email}</span>
+                <button type="button" onClick={() => copyText(created.email)} aria-label="Copiar correo" className="text-muted-foreground hover:text-foreground"><Copy className="h-4 w-4" /></button>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 truncate font-mono text-xs"><KeyRound className="h-3.5 w-3.5 shrink-0" /> {created.password}</span>
+                <button type="button" onClick={() => copyText(created.password)} aria-label="Copiar contraseña" className="text-muted-foreground hover:text-foreground"><Copy className="h-4 w-4" /></button>
+              </div>
+            </div>
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs font-medium">
+              Esta contraseña temporal se muestra una sola vez y no queda guardada. Pida al administrador que la cambie al ingresar.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {formError && (
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
+            )}
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Laboratorio</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Nombre</span>
+                <input value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="Laboratorio Clínico C.S. ..." className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Código</span>
+                <input value={form.code} onChange={(e) => setField('code', e.target.value.toUpperCase())} placeholder="LAB-QUITO-01" className="w-full rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Máx. usuarios</span>
+                <input type="number" min={1} max={1000} value={form.maxUsers} onChange={(e) => setField('maxUsers', e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Ciudad</span>
+                <input value={form.city} onChange={(e) => setField('city', e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Provincia</span>
+                <input value={form.province} onChange={(e) => setField('province', e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+              </label>
+            </div>
+            <p className="pt-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Administrador del laboratorio</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Nombre completo</span>
+                <input value={form.adminName} onChange={(e) => setField('adminName', e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Correo</span>
+                <input type="email" value={form.adminEmail} onChange={(e) => setField('adminEmail', e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold text-muted-foreground">Contraseña temporal</span>
+                <div className="flex gap-2">
+                  <input value={form.adminPassword} onChange={(e) => setField('adminPassword', e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30" />
+                  <button type="button" onClick={() => setField('adminPassword', genPassword())} className="shrink-0 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted">Generar</button>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+      </Modal>
+      {toast && <Toast message={toast.msg} tone={toast.tone} onClose={() => setToast(null)} />}
     </div>
   );
 }

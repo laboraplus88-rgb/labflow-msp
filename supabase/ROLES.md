@@ -11,11 +11,11 @@ Cuentas demo opcionales (crear en Auth + seed):
 
 | Email | Rol | Password sugerida |
 |-------|-----|-------------------|
-| tecnologo@labflow.msp.gob.ec | tecnologo | Lab2026!Tecn |
-| muestras@labflow.msp.gob.ec | toma | Lab2026!Toma |
-| medico@labflow.msp.gob.ec | medico | Lab2026!Medi |
+| tecnologo@labflow.msp.gob.ec | tecnologo | <contrasena-segura-propia> |
+| muestras@labflow.msp.gob.ec | toma | <contrasena-segura-propia> |
+| medico@labflow.msp.gob.ec | medico | <contrasena-segura-propia> |
 
-Password jefa demo: `Lab2026!Jefa` (la de superadmin la defines al crear el user en Auth).
+Password jefa demo: `<contrasena-segura-propia>` (la de superadmin la defines al crear el user en Auth).
 
 ## Orden
 

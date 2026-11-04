@@ -28,8 +28,8 @@ export default function WorkflowTable({ tests, onOpen, onAdvance, onResetFilters
     return (
       <EmptyState
         icon={<FlaskConical className="h-6 w-6" />}
-        title="Ning\u00fan examen en esta vista"
-        description="No hay ex\u00e1menes que coincidan con los filtros activos. Quite alg\u00fan filtro para ver el flujo completo."
+        title="Ningún examen en esta vista"
+        description="No hay exámenes que coincidan con los filtros activos. Quite algún filtro para ver el flujo completo."
         actionLabel="Limpiar filtros"
         onAction={onResetFilters}
       />
@@ -42,7 +42,7 @@ export default function WorkflowTable({ tests, onOpen, onAdvance, onResetFilters
         <table className="w-full min-w-[1180px] text-sm">
           <thead className="bg-muted/60">
             <tr>
-              {['ID prueba', 'Paciente', 'Examen', 'Muestra', 'Orden / Prioridad', 'M\u00e9dico solicitante', 'Responsable', 'Validador', 'Etapa', 'Plazo de entrega', ''].map((h) => (
+              {['ID prueba', 'Paciente', 'Examen', 'Muestra', 'Orden / Prioridad', 'Médico solicitante', 'Responsable', 'Validador', 'Etapa', 'Plazo de entrega', ''].map((h) => (
                 <th key={`wh-${h || 'actions'}`} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {h}
                 </th>

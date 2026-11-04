@@ -39,7 +39,7 @@ Next.js 15 · React 19 · TypeScript · Tailwind · Supabase · Recharts
 
 | Rol | Correo | Password |
 |-----|--------|----------|
-| Jefa | jefatura@labflow.msp.gob.ec | Lab2026!Jefa |
-| Tecnólogo | tecnologo@labflow.msp.gob.ec | Lab2026!Tecn |
-| Toma | muestras@labflow.msp.gob.ec | Lab2026!Toma |
-| Médico | medico@labflow.msp.gob.ec | Lab2026!Medi |
+| Jefa | jefatura@labflow.msp.gob.ec | <contrasena-segura-propia> |
+| Tecnólogo | tecnologo@labflow.msp.gob.ec | <contrasena-segura-propia> |
+| Toma | muestras@labflow.msp.gob.ec | <contrasena-segura-propia> |
+| Médico | medico@labflow.msp.gob.ec | <contrasena-segura-propia> |

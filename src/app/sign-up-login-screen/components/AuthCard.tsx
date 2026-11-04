@@ -6,9 +6,9 @@ import AppLogo from '@/components/ui/AppLogo';
 import { signIn, signUp } from '@/lib/supabase/api';
 
 const ACCOUNTS = [
-  { role: 'Jefa de laboratorio', email: 'jefatura@labflow.msp.gob.ec', password: 'Lab2026!Jefa', icon: Crown },
-  { role: 'Bioquimico / Tecnologo', email: 'tecnologo@labflow.msp.gob.ec', password: 'Lab2026!Tecn', icon: FlaskConical },
-  { role: 'Medico solicitante', email: 'medico@labflow.msp.gob.ec', password: 'Lab2026!Medi', icon: Stethoscope },
+  { role: 'Jefa de laboratorio', email: 'jefatura@labflow.msp.gob.ec', icon: Crown },
+  { role: 'Bioquimico / Tecnologo', email: 'tecnologo@labflow.msp.gob.ec', icon: FlaskConical },
+  { role: 'Medico solicitante', email: 'medico@labflow.msp.gob.ec', icon: Stethoscope },
 ];
 
 export default function AuthCard() {
@@ -21,9 +21,9 @@ export default function AuthCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fillAccount = (e: string, p: string) => {
+  const fillAccount = (e: string) => {
     setEmail(e);
-    setPassword(p);
+    setPassword('');
     setError('');
   };
 
@@ -194,7 +194,7 @@ export default function AuthCard() {
                     <button
                       key={a.email}
                       type="button"
-                      onClick={() => fillAccount(a.email, a.password)}
+                      onClick={() => fillAccount(a.email)}
                       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
                     >
                       <Icon className="h-3 w-3 text-primary" />

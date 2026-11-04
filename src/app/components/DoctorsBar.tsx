@@ -6,7 +6,7 @@ const DATA = [
   { doctor: 'Dra. Juana Sarango', rutina: 214, urgente: 22, control: 61 },
   { doctor: 'Dr. Mauricio Quishpe', rutina: 48, urgente: 131, control: 9 },
   { doctor: 'Dr. Luis P. Andrade', rutina: 156, urgente: 14, control: 47 },
-  { doctor: 'Dra. Carmen Villac\u00eds', rutina: 132, urgente: 18, control: 33 },
+  { doctor: 'Dra. Carmen Villacís', rutina: 132, urgente: 18, control: 33 },
   { doctor: 'Dra. Paola Jaramillo', rutina: 97, urgente: 6, control: 52 },
   { doctor: 'Dr. Esteban Cevallos', rutina: 74, urgente: 4, control: 88 },
 ];

@@ -121,14 +121,14 @@ export default function LabAdminDashboard() {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Examenes hoy</p>
             <FlaskConical className="h-5 w-5 text-accent" />
           </div>
-          <p className="mt-2 text-3xl font-bold tabular">{data?.tests_today ?? '\u2014'}</p>
+          <p className="mt-2 text-3xl font-bold tabular">{data?.tests_today ?? '—'}</p>
         </article>
         <article className="rounded-xl border border-border bg-card p-4 sm:p-5">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cola</p>
             <Activity className="h-5 w-5 text-warning" />
           </div>
-          <p className="mt-2 text-3xl font-bold tabular">{data?.pending_tests ?? '\u2014'}</p>
+          <p className="mt-2 text-3xl font-bold tabular">{data?.pending_tests ?? '—'}</p>
         </article>
       </section>
 
@@ -162,7 +162,7 @@ export default function LabAdminDashboard() {
                     return (
                       <tr key={s.id} className="border-b border-border/60 hover:bg-muted/40">
                         <td className="px-4 py-2.5">
-                          <p className="font-medium">{s.full_name || '\u2014'}</p>
+                          <p className="font-medium">{s.full_name || '—'}</p>
                           <p className="text-[11px] text-muted-foreground">{s.email}</p>
                         </td>
                         <td className="px-4 py-2.5">
@@ -178,7 +178,7 @@ export default function LabAdminDashboard() {
                           )}
                         </td>
                         <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
-                          {on ? s.current_path || '\u2014' : '\u2014'}
+                          {on ? s.current_path || '—' : '—'}
                         </td>
                       </tr>
                     );

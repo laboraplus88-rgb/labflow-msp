@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Tooltip from '@/components/ui/Tooltip';
+import { getMyRole, signOut } from '@/lib/supabase/api';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -15,6 +16,12 @@ interface SidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
 }
+
+// Qué roles ven cada opción. Sin rol definido = visible para todos los roles de laboratorio.
+const ITEM_ROLES: Record<string, string[]> = {
+  '/admin-global': ['superadmin'],
+  '/admin-lab': ['jefa'],
+};
 
 const NAV = [
   {
@@ -38,6 +45,36 @@ const NAV = [
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const isCollapsed = collapsed && !mobileOpen;
+  const [role, setRole] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getMyRole()
+      .then((r) => { if (alive) setRole(r); })
+      .catch(() => { if (alive) setRole(null); });
+    return () => { alive = false; };
+  }, []);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      // Navegación completa: limpia el estado del cliente y fuerza al middleware a releer la sesión.
+      window.location.assign('/sign-up-login-screen');
+    }
+  };
+
+  // El superadmin solo gestiona laboratorios: no ve módulos clínicos.
+  const visibleNav = NAV.map((g) => ({
+    ...g,
+    items: g.items.filter((item) => {
+      if (role === 'superadmin') return item.href === '/admin-global';
+      const allowed = ITEM_ROLES[item.href];
+      return !allowed || (role !== null && allowed.includes(role));
+    }),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <>
@@ -74,7 +111,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-          {NAV.map((g) => (
+          {visibleNav.map((g) => (
             <div key={g.group}>
               {!isCollapsed && (
                 <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -123,13 +160,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
             {!isCollapsed && <span className="text-xs font-medium">Colapsar</span>}
           </button>
-          <Link
-            href="/sign-up-login-screen"
-            className="mt-1 flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-destructive"
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="mt-1 flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-60"
           >
             <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span>Salir</span>}
-          </Link>
+            {!isCollapsed && <span>{signingOut ? 'Saliendo...' : 'Salir'}</span>}
+          </button>
         </div>
       </aside>
     </>

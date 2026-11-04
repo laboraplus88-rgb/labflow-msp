@@ -130,7 +130,7 @@ export default function RecentRequestsTable() {
                   ? [r.patients.apellido_paterno, r.patients.apellido_materno, r.patients.primer_nombre]
                       .filter(Boolean)
                       .join(' ')
-                  : '\u2014';
+                  : '—';
                 return (
                   <tr key={r.id} className="border-b border-border/60 hover:bg-muted/40">
                     <td className="px-4 py-2.5 font-mono text-xs font-semibold text-primary">{r.code}</td>

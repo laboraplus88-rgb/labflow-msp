@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Menu, Search, Bell, Clock3, LogOut, User } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { getProfile, getMyRole, signOut } from '@/lib/supabase/api';
 
 interface TopbarProps {
@@ -18,7 +17,6 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
-  const router = useRouter();
   const [now, setNow] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -47,9 +45,11 @@ export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
 
   const handleSignOut = async () => {
     setBusy(true);
-    await signOut();
-    router.push('/sign-up-login-screen');
-    router.refresh();
+    try {
+      await signOut();
+    } finally {
+      window.location.assign('/sign-up-login-screen');
+    }
   };
 
   return (
@@ -100,7 +100,7 @@ export default function Topbar({ title, subtitle, onMenu }: TopbarProps) {
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-foreground">{fullName || 'Usuario'}</p>
                 <p className="truncate text-[10px] text-muted-foreground">
-                  {role ? ROLE_LABEL[role] ?? role : '\u2014'}
+                  {role ? ROLE_LABEL[role] ?? role : '—'}
                 </p>
               </div>
             </div>

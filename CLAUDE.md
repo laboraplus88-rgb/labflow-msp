@@ -26,7 +26,7 @@ Ver DEPLOY.md
 
 ## Cuentas seed
 
-jefatura@labflow.msp.gob.ec / Lab2026!Jefa
-tecnologo@labflow.msp.gob.ec / Lab2026!Tecn
-muestras@labflow.msp.gob.ec / Lab2026!Toma
-medico@labflow.msp.gob.ec / Lab2026!Medi
+jefatura@labflow.msp.gob.ec / <contrasena-segura-propia>
+tecnologo@labflow.msp.gob.ec / <contrasena-segura-propia>
+muestras@labflow.msp.gob.ec / <contrasena-segura-propia>
+medico@labflow.msp.gob.ec / <contrasena-segura-propia>

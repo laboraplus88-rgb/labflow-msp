@@ -34,7 +34,7 @@ export default function OrderSummary({
   const shortName = (patientName || 'paciente')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, '');
 
   return (

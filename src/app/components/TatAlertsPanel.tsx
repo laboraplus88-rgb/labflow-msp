@@ -40,7 +40,7 @@ export default function TatAlertsPanel() {
             const elapsed = Math.round((Date.now() - started) / 60000);
             const left = limit - elapsed;
             const name = t.patients
-              ? `${t.exam_name} \u00b7 ${t.patients.apellido_paterno ?? ''} ${t.patients.primer_nombre ?? ''}`.trim()
+              ? `${t.exam_name} · ${t.patients.apellido_paterno ?? ''} ${t.patients.primer_nombre ?? ''}`.trim()
               : t.exam_name;
             let state = `Quedan ${left} min`;
             let tone: 'danger' | 'warning' | 'neutral' = 'neutral';
@@ -54,7 +54,7 @@ export default function TatAlertsPanel() {
             return {
               id: t.id,
               test: name,
-              rule: `${t.priority} \u00b7 ${limit} min`,
+              rule: `${t.priority} · ${limit} min`,
               state,
               tone,
               where: t.stage,
@@ -107,7 +107,7 @@ export default function TatAlertsPanel() {
                 <Badge tone={a.tone}>{a.state}</Badge>
               </div>
               <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" /> {a.rule} \u00b7 {a.where}
+                <Clock className="h-3 w-3" /> {a.rule} · {a.where}
               </p>
             </li>
           ))}

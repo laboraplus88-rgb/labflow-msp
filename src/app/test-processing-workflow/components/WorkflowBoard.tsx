@@ -42,7 +42,7 @@ function mapRow(row: any): WorkflowTest {
   const p = row.patients;
   const name = p
     ? [p.apellido_paterno, p.apellido_materno, p.primer_nombre].filter(Boolean).join(' ')
-    : '\u2014';
+    : '—';
   const started = row.stage_started_at ? new Date(row.stage_started_at).getTime() : Date.now();
   const minutes = Math.max(0, Math.round((Date.now() - started) / 60000));
   return {
@@ -51,13 +51,13 @@ function mapRow(row: any): WorkflowTest {
     exam: row.exam_name,
     patient: name,
     cedula: p?.cedula ?? '',
-    sample: row.sample_id ? String(row.sample_id).slice(0, 8) : '\u2014',
-    orderType: row.exam_requests?.order_type ?? '\u2014',
+    sample: row.sample_id ? String(row.sample_id).slice(0, 8) : '—',
+    orderType: row.exam_requests?.order_type ?? '—',
     priority: row.priority,
     stage: row.stage as Stage,
-    doctor: '\u2014',
-    tech: '\u2014',
-    validator: '\u2014',
+    doctor: '—',
+    tech: '—',
+    validator: '—',
     category: row.category,
     result: row.result ?? undefined,
     note: row.note ?? undefined,

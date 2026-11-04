@@ -53,7 +53,7 @@ export default function MetricsBentoGrid() {
               Muestras recolectadas hoy
             </p>
             <p className="mt-2 text-4xl sm:text-5xl font-bold tabular">{s.samplesToday}</p>
-            <p className="mt-1 text-sm text-primary-foreground/85">Datos en tiempo real \u00b7 Supabase</p>
+            <p className="mt-1 text-sm text-primary-foreground/85">Datos en tiempo real · Supabase</p>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-foreground/15">
             <TestTube2 className="h-6 w-6" />
@@ -96,7 +96,7 @@ export default function MetricsBentoGrid() {
         <p className="mt-2 text-3xl font-bold tabular text-foreground">
           {s.testsToday + s.pending > 0
             ? `${Math.round((1 - s.urgentOpen / Math.max(1, s.testsToday + s.pending)) * 1000) / 10}%`
-            : '\u2014'}
+            : '—'}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">Estimado operativo</p>
       </article>
@@ -108,7 +108,7 @@ export default function MetricsBentoGrid() {
         </div>
         <p className="mt-2 text-3xl font-bold tabular text-foreground">{s.pending}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {s.urgentOpen} urgentes \u00b7 {Math.max(0, s.pending - s.urgentOpen)} rutina/control
+          {s.urgentOpen} urgentes · {Math.max(0, s.pending - s.urgentOpen)} rutina/control
         </p>
       </article>
     </section>
