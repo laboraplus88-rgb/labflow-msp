@@ -167,7 +167,10 @@ export default function ExamCatalog({ selected, onToggle }: ExamCatalogProps) {
                           {ex.unit !== '-' && <span> {ex.unit}</span>}
                         </span>
                         <span className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <span className={`h-2.5 w-2.5 rounded-full border border-border ${tube.swatch}`} />
+                          <span
+                            className="h-2.5 w-2.5 rounded-full border border-black/10"
+                            style={{ backgroundColor: tube.color }}
+                          />
                           {tube.label}
                         </span>
                       </span>
