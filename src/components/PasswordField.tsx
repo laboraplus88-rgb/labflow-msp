@@ -53,14 +53,18 @@ export function PasswordField({
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium">Contraseña *</label>
+      <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+        Contraseña *
+      </label>
 
-      <div className="flex gap-2 text-sm">
+      <div className="flex gap-2 text-xs">
         <button
           type="button"
           onClick={setAuto}
-          className={`rounded-md border px-3 py-1 ${
-            mode === "auto" ? "bg-teal-700 text-white" : ""
+          className={`rounded-md border px-2.5 py-1 font-semibold ${
+            mode === "auto"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border hover:bg-muted"
           }`}
         >
           Generar automática
@@ -68,8 +72,10 @@ export function PasswordField({
         <button
           type="button"
           onClick={setCustom}
-          className={`rounded-md border px-3 py-1 ${
-            mode === "custom" ? "bg-teal-700 text-white" : ""
+          className={`rounded-md border px-2.5 py-1 font-semibold ${
+            mode === "custom"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border hover:bg-muted"
           }`}
         >
           Personalizada
@@ -83,7 +89,8 @@ export function PasswordField({
           onChange={(e) => onChange(e.target.value)}
           readOnly={mode === "auto"}
           placeholder="Mínimo 8 caracteres"
-          className="w-full rounded-md border px-3 py-2 pr-28"
+          className="w-full rounded-lg border border-input bg-background px-3 py-2.5 pr-24 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+          autoComplete="new-password"
         />
         <div className="absolute inset-y-0 right-2 flex items-center gap-1">
           {mode === "auto" && (
@@ -91,30 +98,32 @@ export function PasswordField({
               type="button"
               title="Regenerar"
               onClick={() => onChange(generatePassword())}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={15} />
             </button>
           )}
           <button
             type="button"
             title="Copiar"
-            onClick={() => navigator.clipboard.writeText(value)}
+            onClick={() => value && navigator.clipboard.writeText(value)}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <Copy size={16} />
+            <Copy size={15} />
           </button>
           <button
             type="button"
             title="Mostrar/ocultar"
             onClick={() => setShow((s) => !s)}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+            {show ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
       </div>
 
-      <p className="text-xs text-slate-500">
-        Cópiela y entréguela al usuario: no se podrá volver a ver después de
-        guardar.
+      <p className="text-[11px] text-muted-foreground">
+        Cópiela y entréguela al usuario: no se podrá volver a ver después de guardar.
       </p>
     </div>
   );

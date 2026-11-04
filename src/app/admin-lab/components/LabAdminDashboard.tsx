@@ -2,10 +2,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Users, UserPlus, Activity, FlaskConical, Loader2, RefreshCw,
-  Wifi, Shield, CheckCircle2, Pencil, Power, X,
+  Wifi, Shield, CheckCircle2, Pencil, Power, X, Copy,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import LabProfilePanel from './LabProfilePanel';
+import { PasswordField, generatePassword } from '@/components/PasswordField';
 
 type StaffRow = {
   id: string;
@@ -45,11 +46,21 @@ function isOnline(lastSeen?: string | null) {
   return Date.now() - new Date(lastSeen).getTime() < 120_000;
 }
 
+function isValidPassword(pwd: string) {
+  return (
+    pwd.length >= 8 &&
+    /[A-Z]/.test(pwd) &&
+    /[a-z]/.test(pwd) &&
+    /[0-9]/.test(pwd)
+  );
+}
+
 const emptyForm = {
   fullName: '',
   email: '',
   role: 'tecnologo',
   active: true,
+  password: '',
 };
 
 export default function LabAdminDashboard() {
@@ -61,6 +72,8 @@ export default function LabAdminDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  /** Contraseña generada mostrada una sola vez tras crear */
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -89,9 +102,15 @@ export default function LabAdminDashboard() {
   }, [load]);
 
   const resetForm = () => {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, password: generatePassword() });
     setEditingId(null);
+    setCreatedPassword(null);
   };
+
+  // Generar password inicial al montar (modo crear)
+  useEffect(() => {
+    setForm((f) => (f.password ? f : { ...f, password: generatePassword() }));
+  }, []);
 
   const startEdit = (s: StaffRow) => {
     setEditingId(s.id);
@@ -100,26 +119,42 @@ export default function LabAdminDashboard() {
       email: s.email || '',
       role: s.role || 'tecnologo',
       active: s.active !== false,
+      password: '',
     });
+    setCreatedPassword(null);
     setToast('');
   };
 
   const saveStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.email.trim()) {
-      setToast('Ingrese el correo del usuario (debe existir en Supabase Auth).');
+      setToast('Ingrese el correo del usuario.');
       return;
     }
     if (!form.fullName.trim()) {
       setToast('Ingrese el nombre completo.');
       return;
     }
+
+    // Solo validar password al crear (no al editar)
+    if (!editingId) {
+      if (!isValidPassword(form.password)) {
+        setToast(
+          'Contraseña inválida: mínimo 8 caracteres, con mayúscula, minúscula y número.'
+        );
+        return;
+      }
+    }
+
     setSaving(true);
     setToast('');
+    setCreatedPassword(null);
+
     try {
       const supabase = createClient();
 
       if (editingId) {
+        // Editar: sigue usando RPC (no cambia contraseña)
         const { error: err } = await supabase.rpc('update_staff_profile', {
           p_user_id: editingId,
           p_full_name: form.fullName.trim(),
@@ -134,28 +169,35 @@ export default function LabAdminDashboard() {
           await load();
         }
       } else {
-        const { error: err } = await supabase.rpc('assign_staff_to_lab', {
-          p_email: form.email.trim(),
-          p_role: form.role,
-          p_laboratory_id: data?.laboratoryId ?? null,
-          p_full_name: form.fullName.trim(),
-          p_active: form.active,
-        });
-        if (err) {
-          setToast(
-            err.message +
-              (err.message.includes('no encontrado')
-                ? ' → Authentication → Users → Add user (Auto Confirm), luego reintente.'
-                : '')
-          );
+        // Crear: Edge Function create-staff-user
+        const { data: fnData, error: fnError } = await supabase.functions.invoke(
+          'create-staff-user',
+          {
+            body: {
+              full_name: form.fullName.trim(),
+              email: form.email.trim(),
+              role: form.role,
+              active: form.active,
+              password: form.password,
+            },
+          }
+        );
+
+        if (fnError || fnData?.error) {
+          setToast(fnError?.message || fnData?.error || 'Error al crear el usuario.');
         } else {
-          setToast(`Personal asignado: ${form.fullName} (${ROLE_LABEL[form.role] ?? form.role})`);
-          resetForm();
+          setCreatedPassword(form.password); // mostrar una sola vez
+          setToast(
+            `Personal creado: ${form.fullName} (${ROLE_LABEL[form.role] ?? form.role})`
+          );
+          // No resetear password todavía para que se vea el bloque de copiar
+          setForm({ ...emptyForm, password: generatePassword() });
+          setEditingId(null);
           await load();
         }
       }
     } catch {
-      setToast('Error al guardar. Verifique Supabase y 05_staff_manage.sql.');
+      setToast('Error al guardar. Verifique Supabase y la Edge Function create-staff-user.');
     } finally {
       setSaving(false);
     }
@@ -198,6 +240,34 @@ export default function LabAdminDashboard() {
       )}
       {toast && (
         <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">{toast}</p>
+      )}
+
+      {/* Contraseña mostrada una sola vez tras crear */}
+      {createdPassword && (
+        <div className="rounded-lg border border-primary/40 bg-primary/5 px-4 py-3">
+          <p className="text-sm font-semibold text-foreground">
+            Usuario creado. Copie la contraseña ahora (no se volverá a mostrar):
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="flex-1 rounded bg-background px-3 py-2 font-mono text-sm">
+              {createdPassword}
+            </code>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(createdPassword)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copiar
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreatedPassword(null)}
+              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -258,7 +328,7 @@ export default function LabAdminDashboard() {
           </header>
           {staff.length === 0 ? (
             <p className="p-8 text-center text-sm text-muted-foreground">
-              Use el formulario para asignar personal (usuario ya creado en Auth).
+              Use el formulario para crear y asignar personal al laboratorio.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -361,7 +431,7 @@ export default function LabAdminDashboard() {
             <p className="text-xs text-muted-foreground">
               {editingId
                 ? 'Actualice nombre, rol o estado del miembro del equipo.'
-                : 'Primero cree el usuario en Supabase Auth (Auto Confirm). Aqui se asigna nombre, rol y laboratorio.'}
+                : 'Se crea el usuario en Auth y el perfil del laboratorio en un solo paso.'}
             </p>
 
             <div>
@@ -397,6 +467,14 @@ export default function LabAdminDashboard() {
                 </p>
               )}
             </div>
+
+            {/* Contraseña solo al crear */}
+            {!editingId && (
+              <PasswordField
+                value={form.password}
+                onChange={(v) => setForm((f) => ({ ...f, password: v }))}
+              />
+            )}
 
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted-foreground">Rol *</label>
@@ -437,7 +515,7 @@ export default function LabAdminDashboard() {
                 ? 'Guardando...'
                 : editingId
                   ? 'Guardar cambios'
-                  : 'Asignar al laboratorio'}
+                  : 'Crear y asignar al laboratorio'}
             </button>
 
             {editingId && (

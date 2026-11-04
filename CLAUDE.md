@@ -19,37 +19,57 @@ export type AppRole = 'jefa' | 'tecnologo' | 'toma' | 'medico';
 
 El **Doctor** es el rol `medico`.
 
-## Archivos nuevos (creación segura de personal)
+## Creación de personal (nuevo flujo)
 
-- `src/lib/roles.ts` → roles y labels
-- `src/schemas/staff.ts` → Zod schema
-- `src/components/PasswordField.tsx` → generador + campo de contraseña
-- `src/actions/create-staff.ts` → Server Action segura (multi-tenant)
+### UI
+- Formulario en `src/app/admin-lab/components/LabAdminDashboard.tsx`
+- Campo **Contraseña** (entre Correo y Rol) con modos:
+  - Generar automática (12 chars, mayúscula + minúscula + número + símbolo)
+  - Personalizada
+  - Botones mostrar/ocultar y copiar
+- Validación: mínimo 8 caracteres, al menos una mayúscula, una minúscula y un número
+- Al guardar (crear) llama a la Edge Function `create-staff-user`
+- Tras guardar exitoso, muestra la contraseña **una sola vez** para copiarla
+- Se eliminó el texto "Primero cree el usuario en Supabase Auth"
 
-### Puntos de seguridad
+### Edge Function
+```
+supabase/functions/create-staff-user/index.ts
+```
 
-- `SUPABASE_SERVICE_ROLE_KEY` solo en variables de entorno de Vercel (sin `NEXT_PUBLIC_`)
-- El `facility_id` / `laboratory_id` se toma del perfil de la **jefa** que ejecuta la acción, nunca del formulario
-- Se recomienda `must_change_password: true` en user_metadata
-- Usa el cliente admin ya existente: `src/lib/supabase/admin.ts`
+Deploy:
+```bash
+supabase functions deploy create-staff-user --no-verify-jwt
+```
 
-## Hecho (Supabase conectado)
+La función:
+1. Verifica que quien llama sea `jefa` o `superadmin`
+2. Crea el usuario en Auth con la contraseña
+3. Inserta el perfil ligado al `laboratory_id` / `facility_id` de la jefa
+4. Hace rollback (borra el user de Auth) si falla el perfil
+
+### Archivos relacionados
+- `src/components/PasswordField.tsx`
+- `src/lib/roles.ts`
+- `src/schemas/staff.ts`
+- `src/actions/create-staff.ts` (alternativa server-action, no usada por el form actual)
+
+## Hecho
 
 - [x] schema.sql + RLS + seed_roles
 - [x] Auth (AuthCard + middleware)
 - [x] Historial paciente
 - [x] Solicitud de examenes
 - [x] Workflow (list/update stages)
-- [x] Dashboard KPIs (dashboardStats)
-- [x] Creación segura de personal (staff) + PasswordField
+- [x] Dashboard KPIs
+- [x] Creación segura de personal + PasswordField + Edge Function
 
-## Pendiente para produccion
+## Pendiente
 
-1. `npm run build` y corregir errores de tipos/props si aparecen
-2. Ejecutar schema en Supabase + crear usuarios + seed_roles
-3. Vercel: env NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY y **SUPABASE_SERVICE_ROLE_KEY**
-4. Graficos secundarios (CollectionCharts consiguen datos estaticos opcionales
-5. Formulario UI que use PasswordField + createStaffUser (pendiente de conectar en admin-lab)
+1. `npm run build` y corregir errores de tipos si aparecen
+2. Deploy de la Edge Function `create-staff-user`
+3. Vercel: `SUPABASE_SERVICE_ROLE_KEY` (sin NEXT_PUBLIC_)
+4. Probar flujo completo de alta de personal desde Admin laboratorio
 
 ## Deploy
 
