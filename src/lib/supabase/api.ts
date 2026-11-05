@@ -200,12 +200,60 @@ export async function listTests(filters?: { stage?: string; priority?: string })
   return q;
 }
 
+async function logStageChange(params: {
+  testId: string;
+  fromStage?: string | null;
+  toStage: string;
+  action: string;
+  result?: string;
+  resultFlag?: string;
+  note?: string;
+}) {
+  try {
+    const supabase = createClient() as any;
+    const user = await getSessionUser();
+    const profile = await getProfile();
+    await supabase.from('test_stage_logs').insert({
+      test_id: params.testId,
+      from_stage: params.fromStage ?? null,
+      to_stage: params.toStage,
+      action: params.action,
+      result: params.result ?? null,
+      result_flag: params.resultFlag ?? null,
+      note: params.note ?? null,
+      user_id: user?.id ?? null,
+      user_name: (profile as any)?.full_name ?? user?.email ?? 'Usuario',
+    });
+  } catch {
+    // Si la tabla aún no existe, no romper el flujo principal
+  }
+}
+
+export async function getTestStageHistory(testId: string) {
+  const supabase = createClient() as any;
+  const { data, error } = await supabase
+    .from('test_stage_logs')
+    .select('*')
+    .eq('test_id', testId)
+    .order('created_at', { ascending: false });
+  return { data: data ?? [], error };
+}
+
 export async function updateTestStage(
   id: string,
   stage: Stage,
   extra?: { result?: string; result_flag?: string; note?: string }
 ) {
   const supabase = createClient();
+
+  // Leer etapa actual para el log
+  let fromStage: string | null = null;
+  try {
+    const { data: current } = await supabase.from('tests').select('stage').eq('id', id).single();
+    fromStage = current?.stage ?? null;
+  } catch {
+    /* ignore */
+  }
 
   const { data: rpcRow, error: rpcErr } = await supabase.rpc('advance_test_stage', {
     p_test_id: id,
@@ -215,7 +263,18 @@ export async function updateTestStage(
     p_note: extra?.note ?? null,
   });
 
-  if (!rpcErr && rpcRow) return { data: rpcRow, error: null };
+  if (!rpcErr && rpcRow) {
+    await logStageChange({
+      testId: id,
+      fromStage,
+      toStage: stage,
+      action: extra?.result ? 'resultado' : extra?.note?.includes('rechaz') ? 'rechazo' : 'avance',
+      result: extra?.result,
+      resultFlag: extra?.result_flag,
+      note: extra?.note,
+    });
+    return { data: rpcRow, error: null };
+  }
 
   const user = await getSessionUser();
   const patch: Record<string, unknown> = {
@@ -231,7 +290,22 @@ export async function updateTestStage(
     patch.validator_id = user?.id;
     patch.validated_at = new Date().toISOString();
   }
-  return supabase.from('tests').update(patch).eq('id', id).select().single();
+
+  const result = await supabase.from('tests').update(patch).eq('id', id).select().single();
+
+  if (!result.error) {
+    await logStageChange({
+      testId: id,
+      fromStage,
+      toStage: stage,
+      action: extra?.result ? 'resultado' : extra?.note?.includes('rechaz') ? 'rechazo' : 'avance',
+      result: extra?.result,
+      resultFlag: extra?.result_flag,
+      note: extra?.note,
+    });
+  }
+
+  return result;
 }
 
 export async function getPatientOrders(patientId: string) {
