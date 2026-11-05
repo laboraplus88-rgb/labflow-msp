@@ -1,9 +1,11 @@
 name: Deploy Supabase Functions
+
 on:
   push:
     branches: [main]
     paths: ["supabase/functions/**"]
   workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -12,7 +14,10 @@ jobs:
       PROJECT_REF: rasuyedkashzjzwkmivm
     steps:
       - uses: actions/checkout@v4
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-            - run: supabase functions deploy create-staff-user --project-ref $PROJECT_REF --no-verify-jwt --yes
+
+      - name: Deploy create-staff-user
+        run: supabase functions deploy create-staff-user --project-ref $PROJECT_REF --no-verify-jwt --yes
