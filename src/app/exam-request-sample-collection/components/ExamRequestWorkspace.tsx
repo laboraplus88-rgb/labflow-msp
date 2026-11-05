@@ -33,7 +33,7 @@ export default function ExamRequestWorkspace() {
       segundoNombre: '',
       edad: '',
       sexo: '',
-      provincia: 'Pichincha',
+      provincia: '', // en blanco para paciente nuevo (se elige manual)
       canton: '',
       parroquia: '',
       doctor: '',
@@ -57,7 +57,7 @@ export default function ExamRequestWorkspace() {
     });
   }, []);
 
-  // Prefill desde el panel del médico (?cedula=...) y médico solicitante por defecto.
+  // Prefill desde Historial o panel del médico (?cedula=...) y médico solicitante por defecto.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -76,7 +76,7 @@ export default function ExamRequestWorkspace() {
         form.setValue('segundoNombre', p.segundo_nombre ?? '');
         form.setValue('edad', p.edad != null ? String(p.edad) : '');
         form.setValue('sexo', p.sexo ?? '');
-        if (p.provincia) form.setValue('provincia', p.provincia);
+        form.setValue('provincia', p.provincia ?? '');
         form.setValue('canton', p.canton ?? '');
         form.setValue('parroquia', p.parroquia ?? '');
       }

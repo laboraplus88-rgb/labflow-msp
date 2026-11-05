@@ -218,8 +218,9 @@ export default function PatientHistoryWorkspace() {
                     </p>
                   </div>
                 </div>
+                {/* Pasa la cédula para prellenar el formulario de solicitud */}
                 <Link
-                  href="/exam-request-sample-collection"
+                  href={`/exam-request-sample-collection?cedula=${encodeURIComponent(selected.cedula)}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95"
                 >
                   <Plus className="h-4 w-4" /> Nueva solicitud

@@ -120,6 +120,7 @@ export default function PatientForm({ form, lab, facilities }: PatientFormProps)
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted-foreground">Provincia</label>
             <select className={inputCls} {...register('provincia')}>
+              <option value="">Seleccione</option>
               {PROVINCES.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
