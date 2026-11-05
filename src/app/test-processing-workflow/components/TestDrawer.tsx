@@ -5,7 +5,11 @@ import { WorkflowTest, TAT_MINUTES, formatMinutes, STAGES } from '@/lib/labData'
 import Badge, { priorityTone, orderTone, stageTone } from '@/components/ui/Badge';
 
 interface TestDrawerProps {
-  test: WorkflowTest;
+  test: WorkflowTest & {
+    resultRange?: string;
+    resultUnit?: string;
+    resultFlag?: string;
+  };
   onClose: () => void;
   onSaveResult: (id: string, result: string) => void;
   onApprove: (id: string) => void;
@@ -30,6 +34,7 @@ export default function TestDrawer({
   const pct = Math.min(100, Math.round((test.minutesElapsed / limit) * 100));
   const overdue = left < 0;
   const stageIdx = STAGES.indexOf(test.stage);
+  const hasResult = Boolean((test.result || result).trim());
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -37,8 +42,11 @@ export default function TestDrawer({
       <aside className="slide-in-right relative z-10 flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-2xl">
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <p className="font-mono text-xs font-semibold text-primary">{test.id}</p>
+            <p className="font-mono text-xs font-semibold text-primary">
+              {test.id?.slice(0, 8)} · {test.code}
+            </p>
             <h2 className="text-base font-bold text-foreground">{test.exam}</h2>
+            <p className="text-sm text-muted-foreground">{test.patient}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted">
             <X className="h-5 w-5" />
@@ -46,14 +54,49 @@ export default function TestDrawer({
         </header>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin p-5 space-y-5">
-          {/* Patient */}
-          <div className="rounded-lg bg-muted p-3">
-            <p className="text-sm font-semibold text-foreground">{test.patient}</p>
-            <p className="font-mono text-xs text-muted-foreground tabular">CI {test.cedula} · Muestra {test.sample}</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <Badge tone={orderTone(test.orderType)}>{test.orderType}</Badge>
-              <Badge tone={priorityTone(test.priority)} dot>{test.priority}</Badge>
-              <Badge tone={stageTone(test.stage)}>{test.stage}</Badge>
+          {/* Estado + prioridad */}
+          <div className="flex flex-wrap gap-1.5">
+            <Badge tone={stageTone(test.stage)}>{test.stage}</Badge>
+            <Badge tone={priorityTone(test.priority)} dot>{test.priority}</Badge>
+            <Badge tone={orderTone(test.orderType)}>{test.orderType}</Badge>
+            {test.resultFlag === 'alto' && (
+              <Badge tone="danger">▲ Alto</Badge>
+            )}
+            {test.resultFlag === 'bajo' && (
+              <Badge tone="warning">▼ Bajo</Badge>
+            )}
+            {test.resultFlag === 'critico' && (
+              <Badge tone="danger">⚠ Crítico</Badge>
+            )}
+          </div>
+
+          {/* Datos clave al estilo de la imagen */}
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Cédula</p>
+                <p className="font-mono font-medium text-foreground">{test.cedula || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Muestra</p>
+                <p className="font-mono font-medium text-foreground">{test.sample}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Médico solicitante</p>
+                <p className="font-medium text-foreground">{test.doctor}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sección</p>
+                <p className="font-medium text-foreground">{test.category}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Responsable del análisis</p>
+                <p className="font-medium text-foreground">{test.tech}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Validador asignado</p>
+                <p className="font-medium text-foreground">{test.validator}</p>
+              </div>
             </div>
           </div>
 
@@ -73,9 +116,6 @@ export default function TestDrawer({
                 style={{ width: `${Math.min(100, pct)}%` }}
               />
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Transcurrido {formatMinutes(test.minutesElapsed)} de {formatMinutes(limit)} ({test.priority})
-            </p>
           </div>
 
           {/* Timeline stages */}
@@ -99,36 +139,32 @@ export default function TestDrawer({
             </ol>
           </div>
 
-          {/* Staff */}
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Medico solicitante</p>
-              <p className="font-medium text-foreground">{test.doctor}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Responsable</p>
-              <p className="font-medium text-foreground">{test.tech}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Validador</p>
-              <p className="font-medium text-foreground">{test.validator}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Categoria</p>
-              <p className="font-medium text-foreground">{test.category}</p>
-            </div>
-          </div>
-
           {test.note && (
             <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
               <AlertTriangle className="mb-0.5 inline h-3.5 w-3.5 text-warning" /> {test.note}
             </div>
           )}
 
+          {/* Resultado actual */}
+          {test.result && (
+            <div className="rounded-lg border border-border bg-card p-3">
+              <p className="text-xs text-muted-foreground">Resultado registrado</p>
+              <p className="text-lg font-bold text-foreground">
+                {test.result}
+                {test.resultUnit ? ` ${test.resultUnit}` : ''}
+              </p>
+              {test.resultRange && (
+                <p className="text-xs text-muted-foreground">Referencia: {test.resultRange}</p>
+              )}
+            </div>
+          )}
+
           {/* Result input */}
           {(test.stage === 'En proceso' || test.stage === 'Resultado ingresado' || test.stage === 'Recibida en laboratorio') && (
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">Resultado</label>
+              <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                Resultado {test.resultRange ? `(ref: ${test.resultRange})` : ''} *
+              </label>
               <input
                 type="text"
                 value={result}
@@ -136,6 +172,9 @@ export default function TestDrawer({
                 placeholder="Ej. 186 mg/dL"
                 className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
               />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Obligatorio para avanzar. Se alertará si está fuera del rango de referencia.
+              </p>
             </div>
           )}
 
@@ -158,7 +197,8 @@ export default function TestDrawer({
             <button
               type="button"
               onClick={() => onApprove(test.id)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-success py-2.5 text-sm font-semibold text-success-foreground transition-all hover:opacity-90"
+              disabled={!hasResult}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-success py-2.5 text-sm font-semibold text-success-foreground transition-all hover:opacity-90 disabled:opacity-50"
             >
               <CheckCircle2 className="h-4 w-4" /> Validar resultado
             </button>
@@ -166,8 +206,8 @@ export default function TestDrawer({
           {(test.stage === 'En proceso' || test.stage === 'Recibida en laboratorio') && (
             <button
               type="button"
-              onClick={() => result && onSaveResult(test.id, result)}
-              disabled={!result}
+              onClick={() => result.trim() && onSaveResult(test.id, result)}
+              disabled={!result.trim()}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
             >
               Guardar resultado

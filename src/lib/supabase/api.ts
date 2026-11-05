@@ -184,7 +184,14 @@ export async function listTests(filters?: { stage?: string; priority?: string })
   const supabase = createClient();
   let q = supabase
     .from('tests')
-    .select('*, patients(primer_nombre, apellido_paterno, apellido_materno, cedula), exam_requests(order_type, priority)')
+    .select(`
+      *,
+      patients(primer_nombre, apellido_paterno, apellido_materno, cedula),
+      samples(code),
+      exam_requests(order_type, priority, requesting_doctor, doctor_id),
+      tech:profiles!tests_tech_id_fkey(full_name),
+      validator:profiles!tests_validator_id_fkey(full_name)
+    `)
     .order('created_at', { ascending: false })
     .limit(200);
 
@@ -219,7 +226,7 @@ export async function updateTestStage(
   if (extra?.result !== undefined) patch.result = extra.result;
   if (extra?.result_flag) patch.result_flag = extra.result_flag;
   if (extra?.note) patch.note = extra.note;
-  if (stage === 'Resultado ingresado') patch.tech_id = user?.id;
+  if (stage === 'Resultado ingresado' || stage === 'En proceso') patch.tech_id = user?.id;
   if (stage === 'Validado') {
     patch.validator_id = user?.id;
     patch.validated_at = new Date().toISOString();
