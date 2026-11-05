@@ -8,6 +8,7 @@ import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { searchPatients, getPatientOrders, createPatient } from '@/lib/supabase/api';
 
 type PatientRow = {
@@ -77,6 +78,7 @@ const inputCls =
   'w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30';
 
 export default function PatientHistoryWorkspace() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PatientRow[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -174,15 +176,16 @@ export default function PatientHistoryWorkspace() {
         setFormError(err.message);
         return;
       }
-      // Cerrar modal y seleccionar el paciente recién creado
+
+      // Cerrar modal y redirigir a Solicitud de exámenes con datos precargados
       setShowNuevo(false);
       setForm({
         historia: '', cedula: '', apellido_paterno: '', apellido_materno: '',
         primer_nombre: '', segundo_nombre: '', edad: '', sexo: '', provincia: '', canton: '', parroquia: '',
       });
-      if (data) {
-        await selectPatient(data as PatientRow);
-        setQuery(data.cedula);
+
+      if (data?.cedula) {
+        router.push(`/exam-request-sample-collection?cedula=${encodeURIComponent(data.cedula)}`);
       }
     } catch {
       setFormError('Error al guardar el paciente');
