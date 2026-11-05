@@ -6,8 +6,9 @@ import {
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
+import Modal from '@/components/ui/Modal';
 import Link from 'next/link';
-import { searchPatients, getPatientOrders } from '@/lib/supabase/api';
+import { searchPatients, getPatientOrders, createPatient } from '@/lib/supabase/api';
 
 type PatientRow = {
   id: string;
@@ -72,6 +73,9 @@ function orderTone(o: string): 'danger' | 'info' | 'neutral' {
   return 'info';
 }
 
+const inputCls =
+  'w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30';
+
 export default function PatientHistoryWorkspace() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PatientRow[]>([]);
@@ -81,6 +85,24 @@ export default function PatientHistoryWorkspace() {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  // Nuevo paciente modal
+  const [showNuevo, setShowNuevo] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [form, setForm] = useState({
+    historia: '',
+    cedula: '',
+    apellido_paterno: '',
+    apellido_materno: '',
+    primer_nombre: '',
+    segundo_nombre: '',
+    edad: '',
+    sexo: '' as '' | 'F' | 'M',
+    provincia: '',
+    canton: '',
+    parroquia: '',
+  });
 
   const runSearch = useCallback(async (q: string) => {
     setLoadingSearch(true);
@@ -127,12 +149,66 @@ export default function PatientHistoryWorkspace() {
     }
   };
 
+  const handleCreatePatient = async () => {
+    setFormError('');
+    if (!form.cedula.trim() || !form.apellido_paterno.trim() || !form.primer_nombre.trim()) {
+      setFormError('Cédula, apellido paterno y primer nombre son obligatorios');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data, error: err } = await createPatient({
+        historia: form.historia.trim() || undefined,
+        cedula: form.cedula.trim(),
+        apellido_paterno: form.apellido_paterno.trim(),
+        apellido_materno: form.apellido_materno.trim() || undefined,
+        primer_nombre: form.primer_nombre.trim(),
+        segundo_nombre: form.segundo_nombre.trim() || undefined,
+        edad: form.edad ? Number(form.edad) : undefined,
+        sexo: form.sexo || undefined,
+        provincia: form.provincia.trim() || undefined,
+        canton: form.canton.trim() || undefined,
+        parroquia: form.parroquia.trim() || undefined,
+      });
+      if (err) {
+        setFormError(err.message);
+        return;
+      }
+      // Cerrar modal y seleccionar el paciente recién creado
+      setShowNuevo(false);
+      setForm({
+        historia: '', cedula: '', apellido_paterno: '', apellido_materno: '',
+        primer_nombre: '', segundo_nombre: '', edad: '', sexo: '', provincia: '', canton: '', parroquia: '',
+      });
+      if (data) {
+        await selectPatient(data as PatientRow);
+        setQuery(data.cedula);
+      }
+    } catch {
+      setFormError('Error al guardar el paciente');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
       <section className="rounded-xl border border-border bg-card">
         <header className="border-b border-border px-4 py-3">
-          <h2 className="text-sm font-bold text-foreground">Buscar paciente</h2>
-          <p className="text-xs text-muted-foreground">Nombre, cedula o historia clinica</p>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Buscar paciente</h2>
+              <p className="text-xs text-muted-foreground">Nombre, cedula o historia clinica</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setShowNuevo(true); setFormError(''); }}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nuevo
+            </button>
+          </div>
         </header>
         <div className="p-4">
           <label className="relative block">
@@ -218,7 +294,6 @@ export default function PatientHistoryWorkspace() {
                     </p>
                   </div>
                 </div>
-                {/* Pasa la cédula para prellenar el formulario de solicitud */}
                 <Link
                   href={`/exam-request-sample-collection?cedula=${encodeURIComponent(selected.cedula)}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 active:scale-95"
@@ -339,6 +414,86 @@ export default function PatientHistoryWorkspace() {
           </>
         )}
       </div>
+
+      {/* Modal Nuevo paciente (arrastrable) */}
+      <Modal
+        open={showNuevo}
+        onClose={() => setShowNuevo(false)}
+        title="Nuevo paciente"
+        width="max-w-xl"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowNuevo(false)}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleCreatePatient}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Guardar paciente
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">N. historia clinica</label>
+            <input className={inputCls} value={form.historia} onChange={(e) => setForm({ ...form, historia: e.target.value })} placeholder="Opcional" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Cédula *</label>
+            <input className={inputCls} value={form.cedula} onChange={(e) => setForm({ ...form, cedula: e.target.value })} placeholder="0712345678" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Apellido paterno *</label>
+            <input className={inputCls} value={form.apellido_paterno} onChange={(e) => setForm({ ...form, apellido_paterno: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Apellido materno</label>
+            <input className={inputCls} value={form.apellido_materno} onChange={(e) => setForm({ ...form, apellido_materno: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Primer nombre *</label>
+            <input className={inputCls} value={form.primer_nombre} onChange={(e) => setForm({ ...form, primer_nombre: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Segundo nombre</label>
+            <input className={inputCls} value={form.segundo_nombre} onChange={(e) => setForm({ ...form, segundo_nombre: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Edad</label>
+            <input type="number" className={inputCls} value={form.edad} onChange={(e) => setForm({ ...form, edad: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Sexo</label>
+            <select className={inputCls} value={form.sexo} onChange={(e) => setForm({ ...form, sexo: e.target.value as '' | 'F' | 'M' })}>
+              <option value="">Seleccione</option>
+              <option value="F">Femenino</option>
+              <option value="M">Masculino</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Provincia</label>
+            <input className={inputCls} value={form.provincia} onChange={(e) => setForm({ ...form, provincia: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Cantón</label>
+            <input className={inputCls} value={form.canton} onChange={(e) => setForm({ ...form, canton: e.target.value })} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">Parroquia</label>
+            <input className={inputCls} value={form.parroquia} onChange={(e) => setForm({ ...form, parroquia: e.target.value })} />
+          </div>
+        </div>
+        {formError && <p className="mt-3 text-sm text-destructive">{formError}</p>}
+      </Modal>
     </div>
   );
 }
