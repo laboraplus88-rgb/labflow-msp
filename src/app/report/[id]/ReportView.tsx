@@ -45,7 +45,6 @@ function Field({ label, value }: { label: string; value?: string | number | null
   );
 }
 
-/** Tabla de uroanálisis estilo informe clínico */
 function UroReportTable({ values }: { values: UroValues }) {
   return (
     <div className="mt-1">
@@ -67,7 +66,7 @@ function UroReportTable({ values }: { values: UroValues }) {
                 const val = (values[f.key] || '').trim();
                 if (!val || val === '—') return null;
                 return (
-                  <tr key={f.key} className="border-b border-slate-150 border-slate-100">
+                  <tr key={f.key} className="border-b border-slate-100">
                     <td className="px-2 py-0.5 font-medium text-slate-800">{f.label}</td>
                     <td className="px-2 py-0.5 font-bold text-slate-900">{val}</td>
                     <td className="px-2 py-0.5 text-slate-500">{f.ref ?? ''}</td>
@@ -82,7 +81,6 @@ function UroReportTable({ values }: { values: UroValues }) {
   );
 }
 
-/** Detecta si el texto de resultado es un informe multilínea estructurado */
 function isStructuredResult(result: string | null, examName: string, category: string): boolean {
   if (!result) return false;
   if (isUroanalisis(examName, category)) return true;
@@ -95,26 +93,18 @@ function SimpleResultRow({ t }: { t: ReportTest }) {
     <React.Fragment>
       <tr className="border-b border-slate-200">
         <td className="px-2 py-1.5 font-semibold">{t.examName}</td>
-        <td
-          className={`px-2 py-1.5 text-right text-xs ${
-            kind ? 'font-extrabold underline decoration-1' : 'font-bold'
-          }`}
-        >
+        <td className={`px-2 py-1.5 text-right text-xs ${kind ? 'font-extrabold underline decoration-1' : 'font-bold'}`}>
           {t.result ?? '—'}
         </td>
         <td className="px-2 py-1.5 text-slate-600">{t.unit && t.unit !== '-' ? t.unit : ''}</td>
-        <td className="px-2 py-1.5 text-slate-600">
-          {t.range && t.range !== 'Ver informe' ? t.range : ''}
-        </td>
+        <td className="px-2 py-1.5 text-slate-600">{t.range && t.range !== 'Ver informe' ? t.range : ''}</td>
         <td className={`px-2 py-1.5 font-bold ${kind ? 'text-red-700' : 'text-slate-500'}`}>
           {kind ? FLAG_LABEL[kind] : 'Dentro del rango'}
         </td>
       </tr>
       {t.note && (
         <tr className="border-b border-slate-200">
-          <td colSpan={5} className="px-2 pb-1.5 text-[10px] italic text-slate-600">
-            Observación: {t.note}
-          </td>
+          <td colSpan={5} className="px-2 pb-1.5 text-[10px] italic text-slate-600">Observación: {t.note}</td>
         </tr>
       )}
     </React.Fragment>
@@ -124,9 +114,7 @@ function SimpleResultRow({ t }: { t: ReportTest }) {
 function StructuredResultBlock({ t }: { t: ReportTest }) {
   const isUro = isUroanalisis(t.examName, t.category);
   const uroValues = isUro ? parseUroResult(t.result) : null;
-  const hasUroData =
-    uroValues &&
-    Object.values(uroValues).some((v) => v && v.trim() && v !== '—');
+  const hasUroData = uroValues && Object.values(uroValues).some((v) => v && v.trim() && v !== '—');
 
   return (
     <div className="border-b border-slate-200 px-2 py-2 avoid-break">
@@ -136,26 +124,29 @@ function StructuredResultBlock({ t }: { t: ReportTest }) {
           <span className="text-[10px] font-bold text-red-700">{FLAG_LABEL[t.flag as keyof typeof FLAG_LABEL] ?? t.flag}</span>
         )}
       </div>
-
       {isUro && hasUroData ? (
         <UroReportTable values={uroValues!} />
       ) : (
-        <pre className="whitespace-pre-wrap font-sans text-[11px] leading-relaxed text-slate-900">
-          {t.result}
-        </pre>
+        <pre className="whitespace-pre-wrap font-sans text-[11px] leading-relaxed text-slate-900">{t.result}</pre>
       )}
-
-      {t.note && (
-        <p className="mt-1 text-[10px] italic text-slate-600">Observación: {t.note}</p>
-      )}
+      {t.note && <p className="mt-1 text-[10px] italic text-slate-600">Observación: {t.note}</p>}
     </div>
   );
 }
 
 export default function ReportView({ requestId }: { requestId: string }) {
+  const [autoPrint, setAutoPrint] = useState(false);
   const [data, setData] = useState<ReportData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    try {
+      setAutoPrint(new URLSearchParams(window.location.search).get('print') === '1');
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -169,6 +160,13 @@ export default function ReportView({ requestId }: { requestId: string }) {
       alive = false;
     };
   }, [requestId]);
+
+  useEffect(() => {
+    if (!loading && data && autoPrint && (data.tests ?? []).some((t) => t.ready)) {
+      const t = setTimeout(() => window.print(), 400);
+      return () => clearTimeout(t);
+    }
+  }, [loading, data, autoPrint]);
 
   const ready = useMemo(() => (data?.tests ?? []).filter((t) => t.ready), [data]);
   const pending = useMemo(() => (data?.tests ?? []).filter((t) => !t.ready), [data]);
@@ -210,14 +208,8 @@ export default function ReportView({ requestId }: { requestId: string }) {
       <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-3 px-6 text-center">
         <AlertTriangle className="h-8 w-8 text-destructive" />
         <p className="text-sm font-semibold">No se puede mostrar este informe</p>
-        <p className="text-xs text-muted-foreground">
-          {error || 'La orden no existe o no tiene permiso para verla.'}
-        </p>
-        <button
-          type="button"
-          onClick={() => window.history.back()}
-          className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted"
-        >
+        <p className="text-xs text-muted-foreground">{error || 'La orden no existe o no tiene permiso para verla.'}</p>
+        <button type="button" onClick={() => window.history.back()} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted">
           Volver
         </button>
       </div>
@@ -229,15 +221,13 @@ export default function ReportView({ requestId }: { requestId: string }) {
   const noResults = ready.length === 0;
   const place = [lab.city, lab.province].filter(Boolean).join(', ');
   const collected = data.samples.map((s) => s.collectedAt).filter(Boolean).sort()[0] ?? null;
-  const collectors = Array.from(
-    new Set(data.samples.map((s) => s.collectedBy).filter(Boolean))
-  ) as string[];
+  const collectors = Array.from(new Set(data.samples.map((s) => s.collectedBy).filter(Boolean))) as string[];
 
   return (
     <div className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">
       <style>{PRINT_CSS}</style>
 
-      <div className="no-print mx-auto mb-4 flex max-w-[210mm] items-center justify-between gap-3 px-3">
+      <div className="no-print mx-auto mb-4 flex max-w-[210mm] flex-wrap items-center justify-between gap-3 px-3">
         <button
           type="button"
           onClick={() => window.history.back()}
@@ -249,9 +239,9 @@ export default function ReportView({ requestId }: { requestId: string }) {
           type="button"
           onClick={() => window.print()}
           disabled={noResults}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50"
         >
-          <Printer className="h-4 w-4" /> Imprimir / Guardar PDF
+          <Printer className="h-4 w-4" /> Imprimir PDF
         </button>
       </div>
 
@@ -293,23 +283,16 @@ export default function ReportView({ requestId }: { requestId: string }) {
 
         <section className="avoid-break mt-3 grid grid-cols-2 gap-x-6 gap-y-1 rounded border border-slate-300 p-3">
           <div className="space-y-0.5">
-            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-              Datos del paciente
-            </p>
+            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Datos del paciente</p>
             <Field label="Paciente" value={p.name} />
             <Field label="Cédula" value={p.cedula} />
             <Field label="N.º historia clínica" value={p.historia} />
             <Field label="Edad" value={p.age != null ? `${p.age} años` : null} />
             <Field label="Sexo" value={p.sex === 'F' ? 'Mujer' : p.sex === 'M' ? 'Hombre' : null} />
-            <Field
-              label="Procedencia"
-              value={[p.parroquia, p.canton, p.province].filter(Boolean).join(', ') || null}
-            />
+            <Field label="Procedencia" value={[p.parroquia, p.canton, p.province].filter(Boolean).join(', ') || null} />
           </div>
           <div className="space-y-0.5">
-            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-              Datos de la solicitud
-            </p>
+            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Datos de la solicitud</p>
             <Field label="Médico solicitante" value={req.requestingDoctor} />
             <Field label="Tipo de atención" value={req.orderType} />
             <Field label="Prioridad" value={req.priority} />
@@ -322,23 +305,15 @@ export default function ReportView({ requestId }: { requestId: string }) {
 
         {noResults ? (
           <p className="mt-6 rounded border border-dashed border-slate-400 px-4 py-10 text-center text-sm text-slate-600">
-            Esta orden aún no tiene resultados validados. El informe se podrá imprimir cuando el
-            laboratorio los valide.
+            Esta orden aún no tiene resultados validados. El informe se podrá imprimir cuando el laboratorio los valide.
           </p>
         ) : (
           groups.map(([cat, list]) => {
             const simple = list.filter((t) => !isStructuredResult(t.result, t.examName, t.category));
-            const structured = list.filter((t) =>
-              isStructuredResult(t.result, t.examName, t.category)
-            );
-
+            const structured = list.filter((t) => isStructuredResult(t.result, t.examName, t.category));
             return (
               <section key={cat} className="mt-4">
-                <h2 className="bg-slate-800 px-3 py-1 text-[11px] font-extrabold uppercase tracking-widest text-white">
-                  {cat}
-                </h2>
-
-                {/* Exámenes simples: tabla clásica */}
+                <h2 className="bg-slate-800 px-3 py-1 text-[11px] font-extrabold uppercase tracking-widest text-white">{cat}</h2>
                 {simple.length > 0 && (
                   <table className="w-full border-collapse text-[11px]">
                     <thead>
@@ -357,8 +332,6 @@ export default function ReportView({ requestId }: { requestId: string }) {
                     </tbody>
                   </table>
                 )}
-
-                {/* Uroanálisis / estructurados: panel completo */}
                 {structured.map((t) => (
                   <StructuredResultBlock key={t.id} t={t} />
                 ))}
@@ -369,24 +342,16 @@ export default function ReportView({ requestId }: { requestId: string }) {
 
         {partial && !noResults && (
           <section className="avoid-break mt-4 rounded border border-slate-300 p-3">
-            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-              Exámenes pendientes de resultado
-            </p>
-            <p className="text-[11px] text-slate-700">
-              {pending.map((t) => t.examName).join(' · ')}
-            </p>
+            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Exámenes pendientes de resultado</p>
+            <p className="text-[11px] text-slate-700">{pending.map((t) => t.examName).join(' · ')}</p>
           </section>
         )}
 
         {data.samples.length > 0 && (
           <section className="avoid-break mt-4">
-            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-              Muestras
-            </p>
+            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Muestras</p>
             <p className="text-[11px] text-slate-700">
-              {data.samples
-                .map((s) => `${s.code} (${(TUBES as any)[s.tube]?.label ?? s.tube})`)
-                .join(' · ')}
+              {data.samples.map((s) => `${s.code} (${(TUBES as any)[s.tube]?.label ?? s.tube})`).join(' · ')}
               {collectors.length > 0 ? ` — Toma: ${collectors.join(', ')}` : ''}
             </p>
           </section>
@@ -402,18 +367,15 @@ export default function ReportView({ requestId }: { requestId: string }) {
             <div className="pt-10 text-center">
               <div className="border-t border-slate-800 pt-1 text-[11px] font-semibold">
                 {validators[0] ?? 'Responsable del laboratorio'}
-                <span className="block text-[10px] font-normal text-slate-600">
-                  Firma y sello del responsable
-                </span>
+                <span className="block text-[10px] font-normal text-slate-600">Firma y sello del responsable</span>
               </div>
             </div>
           </section>
         )}
 
         <footer className="report-footer mt-8 border-t border-slate-300 pt-2 text-center text-[9px] leading-snug text-slate-500">
-          Los resultados corresponden exclusivamente a las muestras recibidas y fueron validados por
-          personal autorizado del laboratorio. Documento generado electrónicamente con LabFlow ·
-          Orden {req.code} · {lab.name}
+          Los resultados corresponden exclusivamente a las muestras recibidas y fueron validados por personal autorizado del laboratorio.
+          Documento generado electrónicamente con LabFlow · Orden {req.code} · {lab.name}
         </footer>
       </article>
     </div>
