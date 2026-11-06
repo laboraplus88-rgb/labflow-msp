@@ -76,8 +76,8 @@ function mapRow(row: any): WorkflowTest {
   const minutes = Math.max(0, Math.round((Date.now() - started) / 60000));
 
   const doctor = row.exam_requests?.requesting_doctor?.trim() || '—';
-  const tech = row.tech?.full_name?.trim() || '—';
-  const validator = row.validator?.full_name?.trim() || '—';
+  const tech = row.tech_name?.trim() || '—';
+  const validator = row.validator_name?.trim() || '—';
 
   return {
     id: row.id,
@@ -139,7 +139,6 @@ export default function WorkflowBoard() {
     reload();
   }, [reload]);
 
-  /** Responsables únicos presentes en los datos (para el filtro) */
   const techOptions = useMemo(() => {
     const set = new Set<string>();
     tests.forEach((t) => {
@@ -230,7 +229,6 @@ export default function WorkflowBoard() {
       return;
     }
 
-    // Recargar para actualizar nombre del responsable
     await reload();
 
     if (flag === 'alto') {

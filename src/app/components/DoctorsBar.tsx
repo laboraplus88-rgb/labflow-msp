@@ -2,14 +2,8 @@
 import React from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
-const DATA = [
-  { doctor: 'Dra. Juana Sarango', rutina: 214, urgente: 22, control: 61 },
-  { doctor: 'Dr. Mauricio Quishpe', rutina: 48, urgente: 131, control: 9 },
-  { doctor: 'Dr. Luis P. Andrade', rutina: 156, urgente: 14, control: 47 },
-  { doctor: 'Dra. Carmen Villacís', rutina: 132, urgente: 18, control: 33 },
-  { doctor: 'Dra. Paola Jaramillo', rutina: 97, urgente: 6, control: 52 },
-  { doctor: 'Dr. Esteban Cevallos', rutina: 74, urgente: 4, control: 88 },
-];
+// Producción: sin médicos demo
+const DATA: { doctor: string; rutina: number; urgente: number; control: number }[] = [];
 
 function Tip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
   if (!active || !payload?.length) return null;
@@ -27,6 +21,15 @@ function Tip({ active, payload, label }: { active?: boolean; payload?: { name: s
 }
 
 export default function DoctorsBar() {
+  if (DATA.length === 0) {
+    return (
+      <div className="flex h-72 w-full flex-col items-center justify-center text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">Sin solicitudes este mes</p>
+        <p className="text-xs">Los médicos aparecerán cuando haya órdenes registradas</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">

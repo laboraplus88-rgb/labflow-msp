@@ -182,22 +182,50 @@ export async function createExamRequest(payload: {
 
 export async function listTests(filters?: { stage?: string; priority?: string }) {
   const supabase = createClient();
+  // Sin join a profiles (no hay FK declarada en el schema cache).
+  // tech_id / validator_id se resuelven después con un mapa de perfiles.
   let q = supabase
     .from('tests')
     .select(`
       *,
       patients(primer_nombre, apellido_paterno, apellido_materno, cedula),
       samples(code),
-      exam_requests(order_type, priority, requesting_doctor, doctor_id),
-      tech:profiles!tests_tech_id_fkey(full_name),
-      validator:profiles!tests_validator_id_fkey(full_name)
+      exam_requests(order_type, priority, requesting_doctor, doctor_id)
     `)
     .order('created_at', { ascending: false })
     .limit(200);
 
   if (filters?.stage && filters.stage !== 'Todas') q = q.eq('stage', filters.stage);
   if (filters?.priority && filters.priority !== 'Todas') q = q.eq('priority', filters.priority);
-  return q;
+
+  const { data, error } = await q;
+  if (error || !data?.length) return { data: data ?? [], error };
+
+  // Resolver nombres de tech / validator si hay ids
+  const ids = new Set<string>();
+  (data as any[]).forEach((row) => {
+    if (row.tech_id) ids.add(row.tech_id);
+    if (row.validator_id) ids.add(row.validator_id);
+  });
+
+  let nameById: Record<string, string> = {};
+  if (ids.size > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', Array.from(ids));
+    (profiles ?? []).forEach((p: any) => {
+      nameById[p.id] = p.full_name;
+    });
+  }
+
+  const enriched = (data as any[]).map((row) => ({
+    ...row,
+    tech_name: row.tech_id ? nameById[row.tech_id] ?? null : null,
+    validator_name: row.validator_id ? nameById[row.validator_id] ?? null : null,
+  }));
+
+  return { data: enriched, error: null };
 }
 
 async function logStageChange(params: {
@@ -246,7 +274,6 @@ export async function updateTestStage(
 ) {
   const supabase = createClient();
 
-  // Leer etapa actual para el log
   let fromStage: string | null = null;
   try {
     const { data: current } = await supabase.from('tests').select('stage').eq('id', id).single();
@@ -312,7 +339,7 @@ export async function getPatientOrders(patientId: string) {
   const supabase = createClient();
   return supabase
     .from('exam_requests')
-    .select('*, tests(*), facilities(name), profiles:profiles!exam_requests_doctor_profile_fkey(full_name)')
+    .select('*, tests(*), facilities(name)')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false });
 }

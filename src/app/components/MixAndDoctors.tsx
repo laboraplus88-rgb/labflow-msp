@@ -22,16 +22,16 @@ export default function MixAndDoctors() {
         <OrderMixPie />
         <ul className="mt-2 space-y-1.5 text-sm">
           {[
-            { l: 'Consulta externa', v: '1 342', c: 'bg-primary' },
-            { l: 'Ambulatorio / control', v: '1 108', c: 'bg-accent' },
-            { l: 'Emergencia', v: '464', c: 'bg-destructive' },
-          ]?.map((x) => (
-            <li key={`om-${x?.l}`} className="flex items-center justify-between">
+            { l: 'Consulta externa', v: '0', c: 'bg-primary' },
+            { l: 'Ambulatorio / control', v: '0', c: 'bg-accent' },
+            { l: 'Emergencia', v: '0', c: 'bg-destructive' },
+          ].map((x) => (
+            <li key={`om-${x.l}`} className="flex items-center justify-between">
               <span className="flex items-center gap-2 text-muted-foreground">
-                <span className={`h-2.5 w-2.5 rounded-full ${x?.c}`} />
-                {x?.l}
+                <span className={`h-2.5 w-2.5 rounded-full ${x.c}`} />
+                {x.l}
               </span>
-              <span className="font-semibold tabular text-foreground">{x?.v}</span>
+              <span className="font-semibold tabular text-foreground">{x.v}</span>
             </li>
           ))}
         </ul>
