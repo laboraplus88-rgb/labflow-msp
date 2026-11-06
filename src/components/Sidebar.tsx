@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ClipboardList, FlaskConical, BarChart3, LogOut, ChevronsLeft, ChevronsRight,
-  X, UserSearch, Building2, Users, LayoutDashboard,
+  X, UserSearch, Building2, Users, LayoutDashboard, Package,
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Tooltip from '@/components/ui/Tooltip';
@@ -18,13 +18,11 @@ interface SidebarProps {
   onMobileClose: () => void;
 }
 
-// Qué roles ven cada opción. Sin rol definido = visible para todos los roles de laboratorio.
 const ITEM_ROLES: Record<string, string[]> = {
   '/admin-global': ['superadmin'],
   '/admin-lab': ['jefa'],
 };
 
-// Menú propio del médico solicitante: sin procesamiento ni estadísticas del laboratorio.
 const DOCTOR_NAV = [
   {
     group: 'Médico',
@@ -48,6 +46,7 @@ const NAV = [
   {
     group: 'Gestion',
     items: [
+      { href: '/inventory', label: 'Inventario', icon: Package },
       { href: '/', label: 'Estadisticas', icon: BarChart3 },
       { href: '/admin-global', label: 'Admin global', icon: Building2 },
       { href: '/admin-lab', label: 'Admin laboratorio', icon: Users },
@@ -81,12 +80,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     try {
       await signOut();
     } finally {
-      // Navegación completa: limpia el estado del cliente y fuerza al middleware a releer la sesión.
       window.location.assign('/sign-up-login-screen');
     }
   };
 
-  // El superadmin solo gestiona laboratorios: no ve módulos clínicos.
   const visibleNav = (role === 'medico' ? DOCTOR_NAV : NAV).map((g) => ({
     ...g,
     items: g.items.filter((item) => {
@@ -149,7 +146,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
               )}
               <ul className="space-y-1">
                 {g.items.map((item) => {
-                  const active = pathname === item.href;
+                  const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                   const Icon = item.icon;
                   const link = (
                     <Link
