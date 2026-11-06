@@ -4,6 +4,14 @@ import { X, CheckCircle2, ArrowRight, AlertTriangle, Clock, History } from 'luci
 import { WorkflowTest, TAT_MINUTES, formatMinutes, STAGES } from '@/lib/labData';
 import Badge, { priorityTone, orderTone, stageTone } from '@/components/ui/Badge';
 import { getMyRole, getTestStageHistory } from '@/lib/supabase/api';
+import UroanalisisForm from './UroanalisisForm';
+import {
+  emptyUroValues,
+  formatUroResult,
+  isUroanalisis,
+  parseUroResult,
+  type UroValues,
+} from '@/lib/uroanalisisPanel';
 
 interface TestDrawerProps {
   test: WorkflowTest & {
@@ -38,7 +46,9 @@ export default function TestDrawer({
   onReject,
   onAdvance,
 }: TestDrawerProps) {
+  const isUro = isUroanalisis(test.exam, test.category);
   const [result, setResult] = useState(test.result || '');
+  const [uro, setUro] = useState<UroValues>(() => parseUroResult(test.result));
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -57,18 +67,41 @@ export default function TestDrawer({
       .finally(() => setLoadingLogs(false));
   }, [isAdmin, test.id]);
 
+  useEffect(() => {
+    setResult(test.result || '');
+    setUro(parseUroResult(test.result));
+  }, [test.id, test.result]);
+
   const limit = TAT_MINUTES[test.priority];
   const left = limit - test.minutesElapsed;
   const pct = Math.min(100, Math.round((test.minutesElapsed / limit) * 100));
   const overdue = left < 0;
   const stageIdx = STAGES.indexOf(test.stage);
-  const hasResult = Boolean((test.result || result).trim());
+
+  const uroFilled = isUro && Boolean(uro.color || uro.aspecto || uro.densidad || uro.ph);
+  const hasResult = isUro
+    ? uroFilled || Boolean((test.result || '').trim())
+    : Boolean((test.result || result).trim());
+
+  const canEditResult =
+    test.stage === 'En proceso' ||
+    test.stage === 'Resultado ingresado' ||
+    test.stage === 'Recibida en laboratorio';
 
   const actionLabel = (a: string) => {
     if (a === 'resultado') return 'Ingresó resultado';
     if (a === 'rechazo') return 'Rechazó muestra';
     if (a === 'avance') return 'Avanzó etapa';
     return a;
+  };
+
+  const handleSave = () => {
+    if (isUro) {
+      const text = formatUroResult(uro);
+      onSaveResult(test.id, text);
+    } else if (result.trim()) {
+      onSaveResult(test.id, result);
+    }
   };
 
   return (
@@ -164,7 +197,6 @@ export default function TestDrawer({
             </ol>
           </div>
 
-          {/* Historial solo para admin del laboratorio (jefa) */}
           {isAdmin && (
             <div className="rounded-xl border border-border bg-card p-3">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -188,9 +220,8 @@ export default function TestDrawer({
                             <span className="font-medium text-foreground">{log.to_stage}</span>
                           </p>
                           {log.result && (
-                            <p className="mt-0.5 text-foreground">
-                              Resultado: <span className="font-mono font-semibold">{log.result}</span>
-                              {log.result_flag ? ` (${log.result_flag})` : ''}
+                            <p className="mt-0.5 whitespace-pre-wrap text-foreground">
+                              Resultado: <span className="font-mono font-semibold">{log.result.slice(0, 80)}{log.result.length > 80 ? '…' : ''}</span>
                             </p>
                           )}
                           {log.note && <p className="mt-0.5 text-muted-foreground">{log.note}</p>}
@@ -213,34 +244,56 @@ export default function TestDrawer({
             </div>
           )}
 
-          {test.result && (
+          {/* Resultado ya guardado (no uro o solo lectura) */}
+          {test.result && !canEditResult && (
             <div className="rounded-lg border border-border bg-card p-3">
-              <p className="text-xs text-muted-foreground">Resultado registrado</p>
-              <p className="text-lg font-bold text-foreground">
-                {test.result}
-                {test.resultUnit ? ` ${test.resultUnit}` : ''}
-              </p>
-              {test.resultRange && (
-                <p className="text-xs text-muted-foreground">Referencia: {test.resultRange}</p>
+              <p className="mb-1 text-xs text-muted-foreground">Resultado registrado</p>
+              {isUro ? (
+                <UroanalisisForm values={parseUroResult(test.result)} onChange={() => {}} readOnly />
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-foreground">
+                    {test.result}
+                    {test.resultUnit ? ` ${test.resultUnit}` : ''}
+                  </p>
+                  {test.resultRange && (
+                    <p className="text-xs text-muted-foreground">Referencia: {test.resultRange}</p>
+                  )}
+                </>
               )}
             </div>
           )}
 
-          {(test.stage === 'En proceso' || test.stage === 'Resultado ingresado' || test.stage === 'Recibida en laboratorio') && (
+          {/* Entrada de resultados */}
+          {canEditResult && (
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-                Resultado {test.resultRange ? `(ref: ${test.resultRange})` : ''} *
-              </label>
-              <input
-                type="text"
-                value={result}
-                onChange={(e) => setResult(e.target.value)}
-                placeholder="Ej. 186 mg/dL"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
-              />
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Obligatorio para avanzar. Se alertará si está fuera del rango de referencia.
-              </p>
+              {isUro ? (
+                <>
+                  <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                    Completar panel de uroanálisis *
+                  </p>
+                  <UroanalisisForm values={uro} onChange={setUro} />
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Se guarda como informe estructurado (físico · químico · sedimento).
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                    Resultado {test.resultRange ? `(ref: ${test.resultRange})` : ''} *
+                  </label>
+                  <input
+                    type="text"
+                    value={result}
+                    onChange={(e) => setResult(e.target.value)}
+                    placeholder="Ej. 186 mg/dL"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Obligatorio para avanzar. Se alertará si está fuera del rango de referencia.
+                  </p>
+                </>
+              )}
             </div>
           )}
 
@@ -272,8 +325,8 @@ export default function TestDrawer({
           {(test.stage === 'En proceso' || test.stage === 'Recibida en laboratorio') && (
             <button
               type="button"
-              onClick={() => result.trim() && onSaveResult(test.id, result)}
-              disabled={!result.trim()}
+              onClick={handleSave}
+              disabled={isUro ? !uroFilled : !result.trim()}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
             >
               Guardar resultado
