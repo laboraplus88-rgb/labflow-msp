@@ -41,13 +41,11 @@ type WorkflowTest = {
   minutesElapsed: number;
 };
 
-/** Intenta detectar si un resultado numérico está fuera de rango tipo "10 - 50" o "< 5" */
 function detectFlag(result: string, range?: string | null): 'normal' | 'alto' | 'bajo' | undefined {
   if (!range || !result) return undefined;
   const num = parseFloat(result.replace(',', '.').replace(/[^0-9.\-]/g, ''));
   if (Number.isNaN(num)) return undefined;
 
-  // Formato "a - b" o "a-b"
   const between = range.match(/([\d.,]+)\s*[-–]\s*([\d.,]+)/);
   if (between) {
     const low = parseFloat(between[1].replace(',', '.'));
@@ -56,7 +54,6 @@ function detectFlag(result: string, range?: string | null): 'normal' | 'alto' | 
     if (num > high) return 'alto';
     return 'normal';
   }
-  // Formato "< x" o "> x"
   const lt = range.match(/<\s*([\d.,]+)/);
   if (lt) {
     const limit = parseFloat(lt[1].replace(',', '.'));
@@ -78,11 +75,7 @@ function mapRow(row: any): WorkflowTest {
   const started = row.stage_started_at ? new Date(row.stage_started_at).getTime() : Date.now();
   const minutes = Math.max(0, Math.round((Date.now() - started) / 60000));
 
-  // Médico: primero requesting_doctor (texto), si no hay intenta no mostrar vacío
-  const doctor =
-    row.exam_requests?.requesting_doctor?.trim() ||
-    '—';
-
+  const doctor = row.exam_requests?.requesting_doctor?.trim() || '—';
   const tech = row.tech?.full_name?.trim() || '—';
   const validator = row.validator?.full_name?.trim() || '—';
 
@@ -146,6 +139,15 @@ export default function WorkflowBoard() {
     reload();
   }, [reload]);
 
+  /** Responsables únicos presentes en los datos (para el filtro) */
+  const techOptions = useMemo(() => {
+    const set = new Set<string>();
+    tests.forEach((t) => {
+      if (t.tech && t.tech !== '—') set.add(t.tech);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [tests]);
+
   const filtered = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
     return tests.filter((t) => {
@@ -154,11 +156,26 @@ export default function WorkflowBoard() {
         t.patient.toLowerCase().includes(q) ||
         t.exam.toLowerCase().includes(q) ||
         t.code.toLowerCase().includes(q) ||
-        t.cedula.includes(q);
+        t.id.toLowerCase().includes(q) ||
+        t.cedula.toLowerCase().includes(q) ||
+        t.sample.toLowerCase().includes(q) ||
+        t.doctor.toLowerCase().includes(q) ||
+        t.tech.toLowerCase().includes(q) ||
+        t.validator.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q);
+
       const ms = filters.stage === 'Todas' || t.stage === filters.stage;
       const mp = filters.priority === 'Todas' || t.priority === filters.priority;
       const mo = filters.orderType === 'Todas' || t.orderType === filters.orderType;
-      return mq && ms && mp && mo;
+
+      let mt = true;
+      if (filters.tech === 'Sin asignar') {
+        mt = !t.tech || t.tech === '—';
+      } else if (filters.tech !== 'Todos') {
+        mt = t.tech === filters.tech;
+      }
+
+      return mq && ms && mp && mo && mt;
     });
   }, [tests, filters]);
 
@@ -176,17 +193,12 @@ export default function WorkflowBoard() {
     const t = tests.find((x) => x.id === id);
     if (!t) return;
 
-    // No permitir avanzar desde En proceso / Resultado ingresado sin resultado
-    if (
-      (t.stage === 'En proceso' || t.stage === 'Resultado ingresado') &&
-      !t.result?.trim()
-    ) {
+    if ((t.stage === 'En proceso' || t.stage === 'Resultado ingresado') && !t.result?.trim()) {
       setToast('Debe ingresar el resultado del examen antes de continuar.');
-      setOpenId(id); // abrir drawer para que lo complete
+      setOpenId(id);
       return;
     }
 
-    // Desde En proceso, forzar pasar por "Resultado ingresado" solo si ya hay resultado
     let next = NEXT_STAGE[t.stage] ?? t.stage;
     if (t.stage === 'En proceso' && t.result?.trim()) {
       next = 'Resultado ingresado';
@@ -218,13 +230,8 @@ export default function WorkflowBoard() {
       return;
     }
 
-    setTests((prev) =>
-      prev.map((x) =>
-        x.id === id
-          ? { ...x, result: result.trim(), resultFlag: flag, stage: 'Resultado ingresado' as Stage }
-          : x
-      )
-    );
+    // Recargar para actualizar nombre del responsable
+    await reload();
 
     if (flag === 'alto') {
       setToast('Resultado guardado. ⚠ Valor ALTO respecto al rango de referencia.');
@@ -246,7 +253,6 @@ export default function WorkflowBoard() {
       setToast(err.message);
       return;
     }
-    // Recargar para obtener el nombre del validador actualizado
     await reload();
     setToast('Resultado validado.');
   };
@@ -296,6 +302,7 @@ export default function WorkflowBoard() {
         onChange={setFilters}
         total={tests.length}
         shown={filtered.length}
+        techOptions={techOptions}
       />
       <WorkflowTable
         tests={filtered as any}
