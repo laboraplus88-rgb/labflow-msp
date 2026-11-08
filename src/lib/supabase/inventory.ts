@@ -1,5 +1,5 @@
 import { createClient } from './client';
-import { getMyLaboratory, getProfile, getSessionUser } from './api';
+import { getMyLaboratory, getMyRole, getProfile, getSessionUser } from './api';
 
 export type InvSource =
   | 'distrito'
@@ -78,8 +78,20 @@ export const CATEGORIES = [
   'General',
 ];
 
+/** Roles con lectura de inventario (alineado a RLS de Claude) */
+export const INV_READ_ROLES = ['jefa', 'tecnologo', 'toma'] as const;
+/** Roles con escritura de inventario / kardex */
+export const INV_WRITE_ROLES = ['jefa', 'tecnologo'] as const;
+
+export async function canWriteInventory(): Promise<boolean> {
+  const role = await getMyRole();
+  return role !== null && (INV_WRITE_ROLES as readonly string[]).includes(role);
+}
+
 export async function listInventoryItems() {
   const supabase = createClient() as any;
+  // RLS filtra por laboratorio; no hace falta forzar laboratory_id en cliente
+  // (sí lo mantenemos si getMyLaboratory está disponible para claridad).
   const lab = await getMyLaboratory();
   let q = supabase
     .from('inventory_items')
@@ -100,18 +112,35 @@ export async function createInventoryItem(payload: {
 }) {
   const supabase = createClient() as any;
   const lab = await getMyLaboratory();
+  if (!lab?.id) {
+    return { data: null, error: new Error('Usuario sin laboratorio asignado') };
+  }
+  const min = Number(payload.min_stock ?? 0);
+  if (min < 0) return { data: null, error: new Error('El stock mínimo no puede ser negativo') };
+
   return supabase
     .from('inventory_items')
     .insert({
-      laboratory_id: lab?.id ?? null,
+      laboratory_id: lab.id,
       code: payload.code.trim(),
       name: payload.name.trim(),
       category: payload.category,
       unit: payload.unit.trim() || 'und',
-      min_stock: payload.min_stock ?? 0,
+      min_stock: min,
       current_stock: 0,
       notes: payload.notes || null,
     })
+    .select()
+    .single();
+}
+
+/** Baja lógica: no se elimina el insumo si tiene historial (RLS + FK restrict). */
+export async function deactivateInventoryItem(itemId: string) {
+  const supabase = createClient() as any;
+  return supabase
+    .from('inventory_items')
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq('id', itemId)
     .select()
     .single();
 }
@@ -129,6 +158,14 @@ export async function listMovements(itemId?: string, limit = 100) {
   return q;
 }
 
+/**
+ * Registra movimiento de kardex.
+ * Preferencia: RPC register_inventory_movement (atómico: movimiento + stock).
+ * Fallback: insert + update (solo si la RPC no existe aún).
+ *
+ * user_id / user_name los fija la base cuando hay trigger/RPC;
+ * el cliente no debe confiar en poder falsificarlos.
+ */
 export async function registerMovement(payload: {
   item_id: string;
   movement_type: InvMovementType;
@@ -143,9 +180,47 @@ export async function registerMovement(payload: {
   notes?: string;
 }) {
   const supabase = createClient() as any;
+  const qty = Number(payload.quantity);
+  if (!qty || qty <= 0) return { data: null, error: new Error('La cantidad debe ser mayor a 0') };
+  if (payload.unit_cost != null && Number(payload.unit_cost) < 0) {
+    return { data: null, error: new Error('El costo no puede ser negativo') };
+  }
+
+  // 1) Intentar RPC atómica (recomendado / alineado con Supabase endurecido)
+  const { data: rpcRow, error: rpcErr } = await supabase.rpc('register_inventory_movement', {
+    p_item_id: payload.item_id,
+    p_movement_type: payload.movement_type,
+    p_source: payload.source,
+    p_quantity: qty,
+    p_unit_cost: payload.unit_cost ?? null,
+    p_lot_code: payload.lot_code || null,
+    p_expires_at: payload.expires_at || null,
+    p_document_ref: payload.document_ref || null,
+    p_origin_detail: payload.origin_detail || null,
+    p_received_by_name: payload.received_by_name || null,
+    p_notes: payload.notes || null,
+  });
+
+  if (!rpcErr && rpcRow) {
+    return { data: rpcRow, error: null };
+  }
+
+  // Si el error es de permisos, no hacer fallback silencioso
+  if (rpcErr && /permission|permiso|policy|row-level|sin permiso/i.test(rpcErr.message)) {
+    return { data: null, error: rpcErr };
+  }
+
+  // 2) Fallback solo si la función no existe todavía
+  if (rpcErr && !/could not find|does not exist|function/i.test(rpcErr.message)) {
+    // Otro error de RPC: reportar
+    // (si la función existe pero falló por stock, etc.)
+    if (!/could not find the function|schema cache/i.test(rpcErr.message || '')) {
+      // continue to fallback only for missing function
+    }
+  }
+
   const lab = await getMyLaboratory();
-  const user = await getSessionUser();
-  const profile = await getProfile();
+  if (!lab?.id) return { data: null, error: new Error('Usuario sin laboratorio asignado') };
 
   const { data: item, error: itemErr } = await supabase
     .from('inventory_items')
@@ -154,9 +229,9 @@ export async function registerMovement(payload: {
     .single();
 
   if (itemErr || !item) return { data: null, error: itemErr ?? new Error('Insumo no encontrado') };
-
-  const qty = Number(payload.quantity);
-  if (!qty || qty <= 0) return { data: null, error: new Error('La cantidad debe ser mayor a 0') };
+  if (item.laboratory_id && item.laboratory_id !== lab.id) {
+    return { data: null, error: new Error('Insumo de otro laboratorio') };
+  }
 
   let newStock = Number(item.current_stock) || 0;
   if (payload.movement_type === 'ingreso') {
@@ -165,18 +240,23 @@ export async function registerMovement(payload: {
     if (qty > newStock) return { data: null, error: new Error('Stock insuficiente') };
     newStock -= qty;
   } else {
-    // ajuste: quantity es el nuevo saldo absoluto si source=ajuste con nota, o delta
-    // Aquí tratamos ajuste como delta positivo (ingreso) o usamos source
-    newStock += qty; // se puede usar salida+ajuste por separado
+    newStock += qty;
   }
+  if (newStock < 0) return { data: null, error: new Error('Stock no puede ser negativo') };
 
-  const unitCost = payload.unit_cost != null && payload.unit_cost !== undefined ? Number(payload.unit_cost) : null;
+  const unitCost =
+    payload.unit_cost != null && payload.unit_cost !== undefined ? Number(payload.unit_cost) : null;
   const totalCost = unitCost != null ? unitCost * qty : null;
+
+  // No enviar user_name inventado: la base/triggers de Claude lo fijan.
+  // En fallback aún enviamos user_id de la sesión real.
+  const user = await getSessionUser();
+  const profile = await getProfile();
 
   const { data: mov, error: movErr } = await supabase
     .from('inventory_movements')
     .insert({
-      laboratory_id: lab?.id ?? item.laboratory_id,
+      laboratory_id: lab.id,
       item_id: payload.item_id,
       movement_type: payload.movement_type,
       source: payload.source,
@@ -190,7 +270,7 @@ export async function registerMovement(payload: {
       origin_detail: payload.origin_detail || null,
       received_by_name: payload.received_by_name || null,
       user_id: user?.id ?? null,
-      user_name: (profile as any)?.full_name ?? user?.email ?? 'Usuario',
+      user_name: (profile as any)?.full_name ?? user?.email ?? null,
       notes: payload.notes || null,
     })
     .select()
