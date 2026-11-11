@@ -1,48 +1,28 @@
-# Módulo Facturación (fase 1)
+# Facturacion y cobranza (fase 1: base de datos)
 
-## Aplicar en Supabase
-
-1. SQL Editor → ejecutar `migrations/20261109_billing_module.sql`
-2. Verificar policies:
-
-```sql
-select tablename, policyname, cmd
-from pg_policies
-where tablename in ('billing_price_items','invoices','invoice_items','payments')
-order by 1, 2;
-```
+Estado: tablas, politicas y funciones aplicadas en Supabase (version endurecida, 2026-11-11).
 
 ## Tablas
+`billing_price_items`, `invoices`, `invoice_items`, `payments`. Todas con `laboratory_id` y RLS **forzado**.
 
-| Tabla | Uso |
-|-------|-----|
-| `billing_price_items` | Precio por `exam_code` y laboratorio |
-| `invoices` | Factura (ligada a patient / exam_request) |
-| `invoice_items` | Líneas |
-| `payments` | Cobros (sin update/delete) |
+## Quien puede que
+| Rol | Ver | Escribir |
+|---|---|---|
+| jefa | facturas, items, pagos, precios | emitir, cobrar, anular, editar precios |
+| tecnologo | facturas, items, pagos, precios | emitir y cobrar |
+| toma | solo lectura | nada |
+| medico, superadmin | nada | nada |
 
-## RPCs
+## Regla clave: la escritura es SOLO por funciones
+`invoices`, `invoice_items` y `payments` **no admiten insert/update/delete directo** desde la app (permiso revocado).
+La interfaz debe llamar a estas funciones (`supabase.rpc(...)`):
+- `billing_issue_from_request(p_request_id, p_payer_type, p_payer_name, p_discount)` emite la factura de una orden.
+  Una sola factura vigente por orden. Precio: `billing_price_items` y, si falta, el precio del catalogo del laboratorio (`tests.price`).
+- `billing_register_payment(p_invoice_id, p_amount, p_method, p_reference, p_notes)` registra un pago; no puede exceder el saldo.
+  Estados: `issued` -> `partial` -> `paid`.
+- `billing_void_invoice(p_invoice_id, p_reason)` anula (solo jefa y solo sin pagos).
 
-- `billing_issue_from_request(request_id, payer_type, payer_name, discount)`
-- `billing_register_payment(invoice_id, amount, method, reference, notes)`
-
-## Roles
-
-| Rol | Precios | Facturas | Pagos |
-|-----|---------|----------|-------|
-| jefa / tecnologo | R/W | R/W | insert |
-| toma | R | R | — |
-| medico | — | — | — |
-| superadmin | — | — | — |
-
-## Fase 2 (UI Next.js) — pendiente
-
-- `/billing` listado + detalle
-- Cargar precios desde catálogo de exámenes
-- Botón «Facturar orden» desde solicitud / workflow
-- Registrar pago
-
-## Fase 3 — pendiente
-
-- Convenios / glosas sector público ampliados
-- Numeración formal / correlativos fiscales Ecuador si aplica
+## Pendiente para la fase 2
+- Numeracion secuencial por laboratorio (hoy `F-AAAAMMDD-xxxxxx`, aleatoria) y factura electronica del SRI.
+- Notas de credito para facturas con pagos.
+- Pantalla de caja, cierre diario y reportes.

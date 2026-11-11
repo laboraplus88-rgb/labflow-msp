@@ -1,64 +1,24 @@
-# Módulo Agenda y Citas (fase 1)
+# Agenda y citas (fase 1: base de datos)
 
-## Aplicar en Supabase
-
-1. SQL Editor → ejecutar `migrations/20261109_appointments_module.sql`
-2. Verificar:
-
-```sql
-select tablename, policyname, cmd
-from pg_policies
-where tablename in ('appointment_resources', 'appointments', 'appointment_waitlist')
-order by 1, 2;
-```
+Estado: tablas, politicas y funciones aplicadas en Supabase. Recurso inicial `BOX-1` creado en cada laboratorio activo.
 
 ## Tablas
+`appointment_resources` (boxes), `appointments`, `appointment_waitlist` (lista de espera). Todas con `laboratory_id` y RLS **forzado**.
 
-| Tabla | Uso |
-|-------|-----|
-| `appointment_resources` | Boxes / áreas de toma |
-| `appointments` | Citas |
-| `appointment_waitlist` | Lista de espera |
+## Quien puede que
+| Rol | Ver | Escribir |
+|---|---|---|
+| jefa, tecnologo | citas, lista de espera, recursos | todo, incluida la gestion de recursos |
+| toma | citas y lista de espera; ve los recursos | crear, cancelar, reprogramar, lista de espera |
+| medico | solo la lista de recursos | nada (no ve la agenda del laboratorio) |
+| superadmin | nada | nada |
 
-## Estados de cita
+Paciente, recurso y orden de una cita deben pertenecer al mismo laboratorio (validado en la funcion y en la politica).
 
-`scheduled` → `confirmed` → `checked_in` → `in_progress` → `completed`  
-También: `cancelled`, `no_show`
+## Funciones (`supabase.rpc(...)`)
+- `appointment_create(...)`, `appointment_cancel(p_appointment_id, p_reason)`, `appointment_reschedule(...)`.
+- Otros cambios de estado (confirmar, llegada, en curso, completada, no asistio) se hacen con update directo, permitido por la politica.
 
-## Prioridades
-
-`normal` | `prioritario` | `programa_publico` | `urgente`
-
-## RPCs
-
-- `appointment_create(...)`
-- `appointment_cancel(id, reason)`
-- `appointment_reschedule(id, scheduled_at, resource_id, duration)`
-
-## Roles
-
-| Rol | Recursos | Citas | Lista espera |
-|-----|----------|-------|--------------|
-| jefa / tecnologo | R/W | R/W | R/W |
-| toma | R | R/W | R/W |
-| medico | R recursos/citas | — escritura | — |
-| superadmin | — | — | — |
-
-## Setup inicial recomendado
-
-Tras aplicar el SQL, crear al menos un recurso por laboratorio:
-
-```sql
-insert into public.appointment_resources (laboratory_id, name, code, resource_type)
-select id, 'Box 1 - Toma de muestras', 'BOX-1', 'toma'
-from public.laboratories
-where active = true
-on conflict do nothing;
-```
-
-## Fase 2 (UI) — pendiente
-
-- `/appointments` calendario / día
-- Crear, confirmar, cancelar, reprogramar
-- Lista de espera
-- Enlace opcional a `exam_request_id`
+## Pendiente
+- Impedir doble reserva del mismo recurso y horario (hoy no se valida).
+- Recordatorios por correo o WhatsApp y portal de citas del paciente.
