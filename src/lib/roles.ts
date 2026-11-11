@@ -35,6 +35,10 @@ export const ROUTE_ACCESS: { prefix: string; roles: AppRole[] }[] = [
     roles: ["jefa", "tecnologo", "toma"],
   },
   {
+    prefix: "/appointments",
+    roles: ["jefa", "tecnologo", "toma", "medico"],
+  },
+  {
     prefix: "/inventory",
     roles: ["jefa", "tecnologo", "toma", "superadmin"],
   },
