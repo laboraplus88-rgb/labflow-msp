@@ -29,25 +29,7 @@ export type PortalAuthResponse = {
   orders: PortalOrder[];
 };
 
-/** @deprecated usar portalAuth */
-export type PortalResult = {
-  patient_name: string;
-  cedula: string;
-  request_code: string;
-  exam_name: string;
-  category: string;
-  result: string | null;
-  result_unit: string | null;
-  result_range: string | null;
-  result_flag: string | null;
-  validated_at: string | null;
-  laboratory_name: string | null;
-};
-
-/**
- * Portal v2: cédula + PIN (6 dígitos) o código de orden.
- * Rate limit y auditoría en la RPC.
- */
+/** Portal v2: cédula + PIN (6 dígitos) o código de orden */
 export async function portalAuth(cedula: string, secret: string) {
   const supabase = createClient() as any;
   return supabase.rpc('patient_portal_auth', {
@@ -56,21 +38,26 @@ export async function portalAuth(cedula: string, secret: string) {
   });
 }
 
-/** Compat v1 */
 export async function portalLookup(cedula: string, accessCode: string) {
   return portalAuth(cedula, accessCode);
 }
 
-/** Staff: emitir / renovar PIN de 6 dígitos */
+/** Staff: emitir / renovar PIN de 6 dígitos (se muestra una sola vez) */
 export async function portalIssuePin(patientId: string) {
   const supabase = createClient() as any;
   return supabase.rpc('portal_issue_pin', { p_patient_id: patientId });
 }
 
-/** Staff: encolar email/WhatsApp “resultados listos” */
-export async function portalEnqueueResultsReady(requestId: string) {
+/** Staff: encolar aviso resultados listos */
+export async function portalEnqueueResultsReady(
+  requestId: string,
+  channel: 'email' | 'whatsapp' | 'sms' = 'whatsapp',
+  destination?: string
+) {
   const supabase = createClient() as any;
   return supabase.rpc('portal_enqueue_results_ready', {
     p_request_id: requestId,
+    p_channel: channel,
+    p_destination: destination ?? null,
   });
 }
