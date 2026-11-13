@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ClipboardList, FlaskConical, BarChart3, LogOut, ChevronsLeft, ChevronsRight,
-  X, UserSearch, Building2, Users, LayoutDashboard, Package,
+  X, UserSearch, Building2, Users, LayoutDashboard, Package, Receipt, CalendarDays,
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Tooltip from '@/components/ui/Tooltip';
@@ -21,6 +21,8 @@ interface SidebarProps {
 const ITEM_ROLES: Record<string, string[]> = {
   '/admin-global': ['superadmin'],
   '/admin-lab': ['jefa'],
+  '/billing': ['jefa', 'tecnologo', 'toma'],
+  '/appointments': ['jefa', 'tecnologo', 'toma', 'medico'],
 };
 
 const DOCTOR_NAV = [
@@ -30,6 +32,7 @@ const DOCTOR_NAV = [
       { href: '/doctor', label: 'Mi panel', icon: LayoutDashboard },
       { href: '/exam-request-sample-collection', label: 'Nueva solicitud', icon: ClipboardList },
       { href: '/patient-history', label: 'Mis pacientes', icon: UserSearch },
+      { href: '/appointments', label: 'Agenda', icon: CalendarDays },
     ],
   },
 ];
@@ -41,11 +44,13 @@ const NAV = [
       { href: '/exam-request-sample-collection', label: 'Solicitud y toma', icon: ClipboardList },
       { href: '/test-processing-workflow', label: 'Procesamiento', icon: FlaskConical },
       { href: '/patient-history', label: 'Historial paciente', icon: UserSearch },
+      { href: '/appointments', label: 'Agenda y citas', icon: CalendarDays },
     ],
   },
   {
     group: 'Gestion',
     items: [
+      { href: '/billing', label: 'Facturación', icon: Receipt },
       { href: '/inventory', label: 'Inventario', icon: Package },
       { href: '/', label: 'Estadisticas', icon: BarChart3 },
       { href: '/admin-global', label: 'Admin global', icon: Building2 },

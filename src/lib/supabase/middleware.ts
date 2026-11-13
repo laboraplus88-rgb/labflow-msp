@@ -7,17 +7,6 @@ import {
   type AppRole,
 } from "@/lib/roles";
 
-/**
- * Middleware de sesión + autorización por rol (defensa en profundidad).
- *
- * - Mantiene el refresh de cookies de Supabase Auth.
- * - Tras autenticar, lee profiles (role, active, laboratory_id).
- * - Opcionalmente comprueba laboratories.active.
- * - Restringe rutas admin/operativas según ROUTE_ACCESS en roles.ts.
- *
- * La seguridad de datos sigue dependiendo de RLS en Postgres.
- * Este middleware evita que un rol vea UIs que no le corresponden.
- */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -48,12 +37,13 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthPage = path.startsWith("/sign-up-login-screen");
+  const isPortal = path === "/portal" || path.startsWith("/portal/");
   const isPublicAsset =
     path.startsWith("/_next") ||
     path === "/favicon.ico" ||
-    path === "/lab-inactive";
+    path === "/lab-inactive" ||
+    isPortal;
 
-  // --- Sin sesión ---
   if (!user && !isAuthPage && !isPublicAsset) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-up-login-screen";
@@ -61,7 +51,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // --- Con sesión en página de login ---
   if (user && isAuthPage) {
     const role = await resolveRole(supabase, user.id);
     const url = request.nextUrl.clone();
@@ -69,15 +58,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Rutas públicas restantes
   if (!user) {
     return supabaseResponse;
   }
 
-  // --- Perfil y autorización ---
+  // Portal accesible también con sesión
+  if (isPortal) {
+    return supabaseResponse;
+  }
+
   const profile = await loadProfile(supabase, user.id);
 
-  // Usuario sin perfil: no abrir paneles admin (evita estados rotos)
   if (!profile) {
     if (isPrivilegedPath(path)) {
       const url = request.nextUrl.clone();
@@ -88,7 +79,6 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Cuenta desactivada
   if (profile.active === false) {
     await supabase.auth.signOut();
     const url = request.nextUrl.clone();
@@ -99,7 +89,6 @@ export async function updateSession(request: NextRequest) {
 
   const role: AppRole | null = isAppRole(profile.role) ? profile.role : null;
 
-  // Laboratorio inactivo (solo personal de lab; superadmin puede seguir en admin-global)
   if (
     role !== "superadmin" &&
     profile.laboratory_id &&
@@ -117,7 +106,6 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Control de acceso por rol
   if (!canAccessPath(path, role)) {
     const url = request.nextUrl.clone();
     url.pathname = defaultHomeForRole(role);
@@ -134,6 +122,8 @@ function isPrivilegedPath(path: string): boolean {
     path.startsWith("/admin-lab") ||
     path.startsWith("/doctor") ||
     path.startsWith("/inventory") ||
+    path.startsWith("/billing") ||
+    path.startsWith("/appointments") ||
     path.startsWith("/test-processing-workflow") ||
     path.startsWith("/exam-request-sample-collection") ||
     path.startsWith("/patient-history") ||
@@ -170,11 +160,6 @@ async function resolveRole(
   return isAppRole(profile.role) ? profile.role : null;
 }
 
-/**
- * null = no se pudo comprobar (no bloquear)
- * false = laboratorio inactivo
- * true = activo
- */
 async function isLaboratoryActive(
   supabase: ReturnType<typeof createServerClient>,
   laboratoryId: string
