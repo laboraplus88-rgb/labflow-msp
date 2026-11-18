@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ClipboardList, FlaskConical, BarChart3, LogOut, ChevronsLeft, ChevronsRight,
-  X, UserSearch, Building2, Users, LayoutDashboard, Package, Receipt, CalendarDays,
+  X, UserSearch, Building2, Users, LayoutDashboard, Package, Receipt, CalendarDays, ShieldCheck,
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Tooltip from '@/components/ui/Tooltip';
@@ -23,6 +23,7 @@ const ITEM_ROLES: Record<string, string[]> = {
   '/admin-lab': ['jefa'],
   '/billing': ['jefa', 'tecnologo', 'toma'],
   '/appointments': ['jefa', 'tecnologo', 'toma', 'medico'],
+  '/qc': ['jefa', 'tecnologo'],
 };
 
 const DOCTOR_NAV = [
@@ -50,6 +51,7 @@ const NAV = [
   {
     group: 'Gestion',
     items: [
+      { href: '/qc', label: 'Control de calidad', icon: ShieldCheck },
       { href: '/billing', label: 'Facturación', icon: Receipt },
       { href: '/inventory', label: 'Inventario', icon: Package },
       { href: '/', label: 'Estadisticas', icon: BarChart3 },
@@ -131,12 +133,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
               <p className="truncate text-[10px] text-muted-foreground">{brandSub}</p>
             </div>
           )}
-          <button
-            type="button"
-            onClick={onMobileClose}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted md:hidden"
-            aria-label="Cerrar"
-          >
+          <button type="button" onClick={onMobileClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted md:hidden" aria-label="Cerrar">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -145,9 +142,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           {visibleNav.map((g) => (
             <div key={g.group}>
               {!isCollapsed && (
-                <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {g.group}
-                </p>
+                <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{g.group}</p>
               )}
               <ul className="space-y-1">
                 {g.items.map((item) => {
@@ -158,9 +153,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                       href={item.href}
                       onClick={onMobileClose}
                       className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
-                        active
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
@@ -169,11 +162,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                   );
                   return (
                     <li key={item.href}>
-                      {isCollapsed ? (
-                        <Tooltip label={item.label} side="right">{link}</Tooltip>
-                      ) : (
-                        link
-                      )}
+                      {isCollapsed ? <Tooltip label={item.label} side="right">{link}</Tooltip> : link}
                     </li>
                   );
                 })}
@@ -183,20 +172,12 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </nav>
 
         <div className="border-t border-border p-3">
-          <button
-            type="button"
-            onClick={onToggle}
-            className="hidden w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-muted-foreground hover:bg-muted md:flex"
-          >
+          <button type="button" onClick={onToggle} className="hidden w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-muted-foreground hover:bg-muted md:flex">
             {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
             {!isCollapsed && <span className="text-xs font-medium">Colapsar</span>}
           </button>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="mt-1 flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-60"
-          >
+          <button type="button" onClick={handleSignOut} disabled={signingOut}
+            className="mt-1 flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-60">
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span>{signingOut ? 'Saliendo...' : 'Salir'}</span>}
           </button>

@@ -43,6 +43,10 @@ export const ROUTE_ACCESS: { prefix: string; roles: AppRole[] }[] = [
     roles: ["jefa", "tecnologo", "toma", "superadmin"],
   },
   {
+    prefix: "/qc",
+    roles: ["jefa", "tecnologo", "superadmin"],
+  },
+  {
     prefix: "/test-processing-workflow",
     roles: ["jefa", "tecnologo", "toma", "superadmin"],
   },
@@ -70,7 +74,7 @@ export function canAccessPath(pathname: string, role: AppRole | null): boolean {
   const rule = ROUTE_ACCESS.find(
     (r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/")
   );
-  if (!rule) return true; // rutas no listadas: las cubre auth + RLS
+  if (!rule) return true;
   return rule.roles.includes(role);
 }
 
