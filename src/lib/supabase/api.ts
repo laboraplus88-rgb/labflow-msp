@@ -46,19 +46,38 @@ export async function signOut() {
   return supabase.auth.signOut();
 }
 
+/** Búsqueda de pacientes por cédula, historia o cualquiera de los nombres/apellidos */
 export async function searchPatients(query: string) {
   const supabase = createClient();
   const q = query.trim();
   if (!q) {
-    const { data, error } = await supabase.from('patients').select('*').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
     return { data: data ?? [], error };
   }
+
+  // Escapar caracteres especiales de filtro PostgREST
+  const safe = q.replace(/[%_,]/g, ' ');
+
   const { data, error } = await supabase
     .from('patients')
     .select('*')
-    .or(`cedula.ilike.%${q}%,historia.ilike.%${q}%,apellido_paterno.ilike.%${q}%,primer_nombre.ilike.%${q}%`)
+    .or(
+      [
+        `cedula.ilike.%${safe}%`,
+        `historia.ilike.%${safe}%`,
+        `apellido_paterno.ilike.%${safe}%`,
+        `apellido_materno.ilike.%${safe}%`,
+        `primer_nombre.ilike.%${safe}%`,
+        `segundo_nombre.ilike.%${safe}%`,
+      ].join(',')
+    )
     .order('apellido_paterno')
     .limit(30);
+
   return { data: data ?? [], error };
 }
 

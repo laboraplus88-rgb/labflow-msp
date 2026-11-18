@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Loader2, Plus, RefreshCw } from 'lucide-react';
 import Toast from '@/components/ui/Toast';
 import Badge from '@/components/ui/Badge';
+import PatientSearchInput, { type PatientHit, patientFullName } from '@/components/PatientSearchInput';
 import {
   cancelAppointment,
   createAppointment,
@@ -46,6 +47,7 @@ export default function AppointmentsWorkspace() {
   const [name, setName] = useState('');
   const [cedula, setCedula] = useState('');
   const [phone, setPhone] = useState('');
+  const [patientId, setPatientId] = useState<string | null>(null);
   const [time, setTime] = useState('08:00');
   const [resourceId, setResourceId] = useState('');
   const [priority, setPriority] = useState<ApptPriority>('normal');
@@ -76,6 +78,20 @@ export default function AppointmentsWorkspace() {
     [rows]
   );
 
+  const onPickPatient = (p: PatientHit) => {
+    setPatientId(p.id);
+    setName(patientFullName(p));
+    setCedula(p.cedula || '');
+    const tel = (p as any).telefono || (p as any).phone || '';
+    if (tel) setPhone(String(tel));
+  };
+
+  const onNameChange = (text: string) => {
+    setName(text);
+    // Si el usuario edita a mano, desvincular patient_id para no asociar mal
+    setPatientId(null);
+  };
+
   const onCreate = async () => {
     if (!name.trim()) {
       setToast('Indique el nombre del paciente');
@@ -91,6 +107,7 @@ export default function AppointmentsWorkspace() {
       const { error } = await createAppointment({
         scheduled_at: scheduled.toISOString(),
         resource_id: resourceId || null,
+        patient_id: patientId,
         patient_name: name,
         patient_cedula: cedula || undefined,
         patient_phone: phone || undefined,
@@ -103,6 +120,7 @@ export default function AppointmentsWorkspace() {
         setName('');
         setCedula('');
         setPhone('');
+        setPatientId(null);
         setNotes('');
         await reload();
       }
@@ -176,8 +194,22 @@ export default function AppointmentsWorkspace() {
           <Plus className="h-4 w-4" /> Nueva cita
         </h2>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <input className={inputCls} placeholder="Nombre paciente *" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className={inputCls} placeholder="Cédula" value={cedula} onChange={(e) => setCedula(e.target.value)} />
+          <PatientSearchInput
+            value={name}
+            onChange={onNameChange}
+            onSelect={onPickPatient}
+            placeholder="Nombre paciente * (buscar…)"
+            className="sm:col-span-1"
+          />
+          <input
+            className={inputCls}
+            placeholder="Cédula"
+            value={cedula}
+            onChange={(e) => {
+              setCedula(e.target.value);
+              setPatientId(null);
+            }}
+          />
           <input className={inputCls} placeholder="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <input className={inputCls} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           <select className={inputCls} value={resourceId} onChange={(e) => setResourceId(e.target.value)}>
@@ -196,6 +228,11 @@ export default function AppointmentsWorkspace() {
           </select>
           <input className={inputCls + ' sm:col-span-2'} placeholder="Notas" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
+        {patientId && (
+          <p className="text-[11px] text-muted-foreground">
+            Paciente vinculado al registro de historia clínica (id interno).
+          </p>
+        )}
         <button
           type="button"
           disabled={saving}
